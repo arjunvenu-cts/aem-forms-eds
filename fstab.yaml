@@ -1,5 +1,2 @@
 mountpoints:
-  /: 
-    url: https://github.com/arjunvenu-cts/aem-forms-eds/tree/main
-    type: "markup"
-    suffix: ".html"
+  /: http://localhost:4502/bin/franklin.delivery/arjunvenu-cts/aem-forms-eds/main
