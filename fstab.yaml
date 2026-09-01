@@ -1,2 +1,6 @@
 mountpoints:
-  /: http://localhost:4502/bin/franklin.delivery/arjunvenu-cts/aem-forms-eds/main
+  /: 
+    url: https://author-p8452-e1321974.adobeaemcloud.com/bin/franklin.delivery/arjunvenu-cts/aem-forms-eds/main
+    type: "markup"
+    suffix: ".html"
+  
