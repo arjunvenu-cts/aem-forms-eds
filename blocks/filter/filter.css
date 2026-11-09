@@ -314,8 +314,18 @@
   margin: 0;
   background: transparent;
   pointer-events: none;
+  z-index: 1;
+}
+/* Ensure active/focused slider thumb is on top */
+.filter .price-slider input[type='range']:focus,
+.filter .price-slider input[type='range']:active {
+  z-index: 3;
 }
 
+/* Class added dynamically when min and max collide at upper bounds */
+.filter .price-slider input[type='range'].is-active-min {
+  z-index: 2;
+}
 .filter .price-slider input[type='range']::-webkit-slider-runnable-track {
   height: 22px;
   background: transparent;

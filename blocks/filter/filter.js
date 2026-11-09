@@ -392,6 +392,19 @@ function renderFilterState(block, filters, groupsConfig) {
       groupEl.style.setProperty('--lo', (rangeVal.min - group.bounds.min) / span);
       groupEl.style.setProperty('--hi', (rangeVal.max - group.bounds.min) / span);
 
+      // --- ADD THIS BLOCK ---
+      // If min and max collide at the top bound, elevate min layer so dragging left moves min
+      const minInput = block.querySelector(`input[name="${group.key}-min"]`);
+      const maxInput = block.querySelector(`input[name="${group.key}-max"]`);
+      if (minInput && maxInput) {
+        if (rangeVal.min === rangeVal.max && rangeVal.max === group.bounds.max) {
+          minInput.classList.add('is-active-min');
+        } else {
+          minInput.classList.remove('is-active-min');
+        }
+      }
+      // ----------------------
+
       const minText = block.querySelector(`.${group.key}-value-min`);
       const maxText = block.querySelector(`.${group.key}-value-max`);
       if (minText) minText.textContent = group.key === 'price' ? `$${rangeVal.min}` : rangeVal.min;

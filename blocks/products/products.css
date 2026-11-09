@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-/* fonts are served from this repo (/fonts), used by the collection cards */
 @font-face {
   font-family: 'Roboto Condensed';
   font-style: normal;
@@ -10,15 +9,13 @@
 }
 
 /* =====================================================================
-   PLP mode: | Products |
+   Shared Products & Card Styles (Used in both PLP and PDP Collection)
    ===================================================================== */
 
 .products {
   --products-gap: 20px;
 }
 
-/* Toolbar: the "Showing 1-24 of N products" text. min-height is the Sort button's height
-   so the text and the button line up on the same row. */
 .products .products-toolbar {
   display: flex;
   align-items: center;
@@ -32,8 +29,6 @@
   color: var(--text-color);
 }
 
-/* Grid (Figma): cards are 318 wide, 9px apart, rows 48px apart.
-   Mobile: two cards per row, 9px apart, rows 16px apart. */
 .products .products-grid {
   list-style: none;
   margin: 0;
@@ -41,9 +36,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 9px;
+  align-items: stretch; /* Ensures all cards in a row stretch to equal height */
 }
 
-/* Tablet/desktop: always 3 cards per row. */
 @media (width >= 600px) {
   .products .products-grid {
     grid-template-columns: repeat(3, minmax(0, 318px));
@@ -52,12 +47,14 @@
   }
 }
 
-/* Card (design: 318 wide, height hugs the content): image / title / price / rating / try-on. */
+/* Card base setup */
 .products .products-card {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  height: 100%; /* Stretch full height of grid cell */
+  box-sizing: border-box;
 }
 
 .products .products-card-media {
@@ -65,7 +62,6 @@
   flex: none;
 }
 
-/* The product image is a link to the product page */
 .products .products-card-image-link {
   display: block;
   color: inherit;
@@ -80,7 +76,6 @@
   background-color: #f3f4f6;
 }
 
-/* Placeholder shown when there is no image, or the image fails to load */
 .products .products-card-image.is-empty::after {
   content: '';
   position: absolute;
@@ -100,7 +95,131 @@
   object-fit: cover;
 }
 
-/* Try-on button, tryOn = TRUE only. Figma: 44px tall, content width, lime green. */
+/* Card body fills remaining space */
+.products .products-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto; /* Expands to fill variable content area */
+}
+
+.products .products-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
+  color: #0e0e0e;
+  font-family: 'Inter';
+}
+
+.products .products-card-link {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+}
+
+.products .products-card-link:hover {
+  text-decoration: underline;
+}
+
+.products .products-card-image-link:focus-visible,
+.products .products-card-link:focus-visible,
+.products .products-card-reviews:focus-visible,
+.products .products-card-tryon:focus-visible {
+  outline: 2px solid var(--link-color, #035fe6);
+  outline-offset: 2px;
+}
+
+.products .products-card-prices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.products .products-card-price,
+.products .products-card-was {
+  font-family: var(--heading-font-family);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #0e0e0e;
+}
+
+.products .products-card-was {
+  color: #B4B4B4;
+  font-size: 20px;
+  text-decoration: line-through;
+}
+
+.products .products-card-discount {
+  box-sizing: border-box;
+  min-width: 70px;
+  padding: 6px 13px;
+  background-color: #fcf55e;
+  color: #0e0e0e;
+  font-family: 'Inter';
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.products .products-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+  margin-top: 2px; /* Keeps rating block anchored above the button */
+}
+
+.products .products-card-reviews {
+  margin: -5px 0;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: #6b6b6b;
+  cursor: pointer;
+  font-family: 'Inter';
+}
+
+.products .products-card-reviews:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.products .products-card-stars {
+  --star-size: 15.4px;
+  --star-on: var(--products-star, #ff7a4d);
+  --star-off: #d9d9d9;
+  --fill: calc(var(--rating, 0) / 5 * 100%);
+  --star-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26'%3E%3Cpath d='M12 2l3 6.5 7 .9-5.2 4.8 1.4 7L12 17.8l-6.2 3.4 1.4-7L2 9.4l7-.9z'/%3E%3C/svg%3E");
+
+  flex: none;
+  display: block;
+  width: calc(var(--star-size) * 5);
+  height: var(--star-size);
+  font-size: 0;
+  color: transparent;
+  background: linear-gradient(90deg, var(--star-on) var(--fill), var(--star-off) var(--fill));
+  -webkit-mask: var(--star-mask) 0 0 / var(--star-size) var(--star-size) repeat-x;
+  mask: var(--star-mask) 0 0 / var(--star-size) var(--star-size) repeat-x;
+}
+
+/* Try-on Button: margin-top auto pushes it to the bottom of card */
 .products .products-card-tryon {
   box-sizing: border-box;
   align-self: flex-start;
@@ -109,7 +228,7 @@
   justify-content: center;
   gap: 14px;
   height: 44px;
-  margin-top: 4px; /* 16px card gap + 4px = 20px under the rating row */
+  margin-top: auto; /* Ensures horizontal alignment regardless of discount height */
   padding: 0 16px;
   border: 0;
   background-color: #C1F377;
@@ -134,143 +253,10 @@
   filter: brightness(0.95);
 }
 
-/* real URL authored: the button is a link, keep it looking like a button */
 .products a.products-card-tryon {
   text-decoration: none;
 }
 
-/* Body, tightly stacked: title / price row / rating row */
-.products .products-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Title (Figma): regular weight, 16px, line height 130%, near-black */
-.products .products-card-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.3;
-  letter-spacing: 0;
-  color: #0e0e0e;
-  font-family: 'Inter';
-}
-
-/* The title is a link to the product page. At most 2 lines on desktop. */
-.products .products-card-link {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  width: fit-content;
-  max-width: 100%;
-  overflow: hidden;
-  color: inherit;
-  text-decoration: none;
-}
-
-.products .products-card-link:hover {
-  text-decoration: underline;
-}
-
-/* Keyboard focus: the same visible ring on every interactive part of the card */
-.products .products-card-image-link:focus-visible,
-.products .products-card-link:focus-visible,
-.products .products-card-reviews:focus-visible,
-.products .products-card-tryon:focus-visible {
-  outline: 2px solid var(--link-color, #035fe6);
-  outline-offset: 2px;
-}
-
-/* Price row (Figma): "$76.00"  "$95"  [-20%], vertically centred on one line */
-.products .products-card-prices {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-}
-
-/* Price: condensed bold 32px, line height 100%, letter spacing -2% */
-.products .products-card-price,
-.products .products-card-was {
-  font-family: var(--heading-font-family);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  color: #0e0e0e;
-}
-
-/* On sale: the original price, crossed out, in grey */
-.products .products-card-was {
-  color: #7d7d7d;
-  text-decoration: line-through;
-}
-
-/* Discount badge: yellow, 70 x 24 */
-.products .products-card-discount {
-  box-sizing: border-box;
-  min-width: 70px;
-  padding: 6px 13px;
-  background-color: #fcf55e;
-  color: #0e0e0e;
-  font-family: 'Inter';
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 12px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* Rating row (Figma): 18px tall; five orange stars, then "206 reviews" in grey */
-.products .products-card-rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 18px;
-}
-
-/* "206 reviews" is a button; padding gives a 24px click area (WCAG 2.5.8) */
-.products .products-card-reviews {
-  margin: -5px 0;
-  padding: 5px 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1;
-  color: #6b6b6b;
-  cursor: pointer;
-  font-family: 'Inter';
-}
-
-.products .products-card-reviews:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* Stars: drawn with a mask so the size is exact (5 stars = 77px wide). */
-.products .products-card-stars {
-  --star-size: 15.4px;
-  --star-on: var(--products-star, #ff7a4d);
-  --star-off: #d9d9d9;
-  --fill: calc(var(--rating, 0) / 5 * 100%);
-  --star-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26'%3E%3Cpath d='M12 2l3 6.5 7 .9-5.2 4.8 1.4 7L12 17.8l-6.2 3.4 1.4-7L2 9.4l7-.9z'/%3E%3C/svg%3E");
-
-  flex: none;
-  display: block;
-  width: calc(var(--star-size) * 5);
-  height: var(--star-size);
-  font-size: 0;
-  color: transparent;
-  background: linear-gradient(90deg, var(--star-on) var(--fill), var(--star-off) var(--fill));
-  -webkit-mask: var(--star-mask) 0 0 / var(--star-size) var(--star-size) repeat-x;
-  mask: var(--star-mask) 0 0 / var(--star-size) var(--star-size) repeat-x;
-}
-
-/* Text for screen readers only */
 .products .products-sr-only {
   position: absolute;
   width: 1px;
@@ -294,7 +280,6 @@
   display: none;
 }
 
-/* Full-width relative to the products grid, non-clickable CTA */
 .products .products-more-btn {
   display: inline-flex;
   align-items: center;
@@ -329,7 +314,6 @@
   height: 16px;
 }
 
-/* Shown when the selected filters match nothing */
 .products .products-empty {
   grid-column: 1 / -1;
   margin: 0;
@@ -339,7 +323,7 @@
   color: #6b6b6b;
 }
 
-/* Small screens (Figma mobile) */
+/* Mobile responsive fixes */
 @media (width < 600px) {
   .products .products-toolbar {
     min-height: 33px;
@@ -347,7 +331,7 @@
   }
 
   .products .products-result-count {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.15;
     margin: 0;
   }
@@ -386,7 +370,7 @@
     gap: 8px;
     height: auto;
     min-height: 44px;
-    margin-top: 0;
+    margin-top: auto; /* Ensures button sticks to card bottom in mobile view */
     padding: 6px 8px;
     font-size: 14px;
     line-height: 1.1;
@@ -405,204 +389,17 @@
 }
 
 /* =====================================================================
-   Collection mode: | Products (collection) |  (Finish the Fit, Your Feed)
+   Collection mode overrides (PDP container adjustments only)
    ===================================================================== */
 
-/* product sections: grey background + space below */
 main > .section:has(.products.collection) {
   padding-bottom: 24px;
   background-color: #f9f9f9;
 }
 
 .products.collection {
-  --product-cards-text: #000;
-  --product-cards-tile: #eef3f6;
-  --product-cards-star: #f26b3a;
-  --product-cards-tryon: #c6f36d;
-
   max-width: 1296px;
   margin: 24px auto 0;
-  color: var(--product-cards-text);
-  font-family: Inter, roboto, sans-serif;
-}
-
-/* mobile: 2 x 2 grid */
-.products.collection .product-cards-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Figma: card is a vertical stack (image, then info) */
-.products.collection .product-cards-item {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background-color: #fff;
-}
-
-.products.collection .product-cards-image {
-  display: block;
-  aspect-ratio: 320 / 450;
-  background-color: var(--product-cards-tile);
-  overflow: hidden;
-}
-
-.products.collection .product-cards-image img {
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  padding: 6%;
-  object-fit: contain;
-  mix-blend-mode: multiply;
-  transition: transform 0.4s ease;
-}
-
-.products.collection a.product-cards-image:hover img {
-  transform: scale(1.03);
-}
-
-.products.collection .product-cards-info {
-  padding-top: 14px;
-}
-
-.products.collection .product-cards-info > * {
-  margin: 0;
-}
-
-.products.collection .product-cards-name {
-  /* 4px inner space so the keyboard focus outline isn't cut off;
-     the negative margin keeps the text in the same place */
-  margin: -4px;
-  padding: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.products.collection .product-cards-name a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.products.collection .product-cards-name a:hover {
-  text-decoration: underline;
-}
-
-.products.collection .product-cards-price {
-  margin-top: 2px;
-  font-family: 'Roboto Condensed', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.products.collection .product-cards-rating {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.products.collection .product-cards-stars,
-.products.collection .product-cards-reviews {
-  border: 0;
-  padding: 0;
-  background: none;
-  font-family: inherit;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.products.collection .product-cards-reviews {
-  color: #6b6b6b;
-  font-size: 12px;
-}
-
-.products.collection .product-cards-reviews:hover,
-.products.collection .product-cards-reviews:focus-visible {
-  text-decoration: underline;
-}
-
-/* mobile: count only, the word "reviews" shows on desktop */
-.products.collection .product-cards-reviews-label {
-  display: none;
-}
-
-.products.collection .product-cards-stars {
-  --percent: calc(var(--rating, 0) / 5 * 100%);
-
-  font-size: 15px;
-  letter-spacing: 0;
-  background: linear-gradient(90deg, var(--product-cards-star) var(--percent), #d9d9d9 var(--percent));
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.products.collection .product-cards-stars:hover,
-.products.collection .product-cards-stars:focus-visible {
-  opacity: 0.8;
-}
-
-.products.collection .product-cards-stars::before {
-  content: '★★★★★';
-}
-
-/* mobile: full card width */
-.products.collection .product-cards-tryon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-sizing: border-box;
-  width: 100%;
-  height: 40px;
-  margin-top: 12px;
-  border: 0;
-  border-radius: 0;
-  padding: 0 12px;
-  background-color: var(--product-cards-tryon);
-  color: var(--product-cards-text);
-  font-family: 'Roboto Condensed', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: none;
-  text-transform: uppercase;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: filter 0.2s;
-}
-
-.products.collection .product-cards-tryon:hover,
-.products.collection .product-cards-tryon:focus-visible {
-  filter: brightness(0.92);
-}
-
-/* keyboard focus (shows only when using Tab) */
-.products.collection a:focus-visible,
-.products.collection button:focus-visible {
-  outline: 2px solid #000;
-  outline-offset: 2px;
-}
-
-.products.collection .product-cards-name a:focus-visible {
-  outline-offset: 1px;
-}
-
-.products.collection .product-cards-skeleton .product-cards-image {
-  animation: product-cards-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes product-cards-pulse {
-  50% { opacity: 0.55; }
 }
 
 @media (width >= 900px) {
@@ -618,62 +415,8 @@ main > .section:has(.products.collection) {
     margin-top: 40px;
   }
 
-  /* Figma: 4 x 318px cards + 3 x 8px gaps = 1296px */
-  .products.collection .product-cards-list {
+  .products.collection .products-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
-  }
-
-  /* Figma: 20px gap between image and info */
-  .products.collection .product-cards-item {
-    gap: 20px;
-  }
-
-  .products.collection .product-cards-info {
-    padding-top: 0;
-  }
-
-  .products.collection .product-cards-name {
-    font-size: 15px;
-  }
-
-  .products.collection .product-cards-price {
-    font-size: 30px;
-  }
-
-  .products.collection .product-cards-reviews {
-    font-size: 14px;
-  }
-
-  .products.collection .product-cards-reviews-label {
-    display: inline;
-  }
-
-  .products.collection .product-cards-stars {
-    font-size: 18px;
-  }
-
-  /* desktop: button fits its text */
-  .products.collection .product-cards-tryon {
-    display: inline-flex;
-    width: auto;
-    height: 42px;
-    margin-top: 20px;
-    padding: 0 18px 0 14px;
-    font-size: 14px;
-  }
-}
-
-/* users who turn off motion */
-@media (prefers-reduced-motion: reduce) {
-  .products.collection .product-cards-image img,
-  .products.collection .product-cards-tryon,
-  .products.collection .product-cards-skeleton .product-cards-image {
-    transition: none;
-    animation: none;
-  }
-
-  .products.collection a.product-cards-image:hover img {
-    transform: none;
   }
 }
