@@ -7,9 +7,11 @@ export default async function decorate(block) {
   if (!product || (product.rating === null && product.reviewCount === null)) return;
 
   if (product.reviewCount !== null) {
-    const link = el('a', 'product-revratings-link', text.reviews);
-    link.href = product.reviewsUrl;
-    link.append(el('span', 'product-revratings-count', ` (${product.reviewCount})`));
+    const link = el('a', 'product-revratings-link');
+    const label = el('span', 'product-revratings-label', text.reviews);
+    // commented out because the link is not required to work
+    // link.href = 'product.reviewsUrl';
+    link.append(label, el('span', 'product-revratings-count', ` (${product.reviewCount})`));
     block.append(link);
   }
   if (product.rating !== null) {
