@@ -1,0 +1,54 @@
+/* Coupon block: purple "USE CODE : <code>" ticket with a dashed code box.
+   Reusable: sits inside the banner or any section. Only the code is authored. */
+.coupon {
+  --coupon-bg: #8c7cf0; /* violet ticket */
+  --coupon-code-bg: #6f5fd6; /* darker violet behind the authored code */
+  --coupon-ink: #fff;
+  --coupon-zig: 13px; /* zigzag size on the left / right edges */
+
+  display: inline-block;
+}
+
+.coupon.coupon-empty {
+  display: none;
+}
+
+.coupon .coupon-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  background: var(--coupon-bg);
+  color: var(--coupon-ink);
+
+  /* Triangular zigzag (sawtooth) along the left and right edges, like a torn ticket */
+  --coupon-mask:
+    conic-gradient(from 135deg at left, #0000 25%, #000 0) 0 50% / 51% calc(2 * var(--coupon-zig)),
+    conic-gradient(from -45deg at right, #0000 25%, #000 0) 100% 50% / 51% calc(2 * var(--coupon-zig));
+
+  mask: var(--coupon-mask);
+  mask-repeat: repeat-y;
+  -webkit-mask: var(--coupon-mask);
+  -webkit-mask-repeat: repeat-y;
+}
+
+/* "USE CODE :" and the authored code share the Figma type:
+   Roboto Condensed 700, 32px, line-height 100% (CAP_HEIGHT trim), letter-spacing 0, uppercase. */
+.coupon .coupon-label,
+.coupon .coupon-code {
+  font-family: var(--heading-font-family);
+  font-size: clamp(18px, 2.2vw, 32px);
+  font-weight: 100; /* match the banner title weight */
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+.coupon .coupon-code {
+  padding: 5px 14px;
+  border: 2px dashed rgb(255 255 255 / 70%);
+  border-radius: 6px;
+  background: var(--coupon-code-bg);
+}

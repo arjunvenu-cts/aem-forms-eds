@@ -13,7 +13,13 @@
  *   font       | <name>            display font for the title (anton / inter / ...)
  * Any remaining text cell is the content: first paragraph = eyebrow, heading(s) = title,
  * following paragraphs = body text.
+ *
+ * Coupon: author a separate Coupon block anywhere on the page; this block hoists it in under
+ * the title (same approach the hero-carousel uses for its try-on button).
  */
+
+import { loadCSS } from '../../scripts/aem.js';
+import { buildTicket } from '../coupon/coupon.js';
 
 const DESKTOP_MEDIA = '(width >= 900px)'; /* same breakpoint as the PLP layout */
 const IMAGE_EXT = /\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i;
@@ -195,7 +201,38 @@ function fillFromImage(block, img) {
   else img.addEventListener('load', sample, { once: true });
 }
 
-export default function decorate(block) {
+/* Pull a standalone Coupon block (authored anywhere on the page) into the banner, under the
+   title, and remove its original spot — the same way the hero-carousel hoists its button. */
+async function hoistCoupon(text) {
+  const source = document.querySelector('.coupon');
+  if (!source) return false;
+
+  /* Read the raw code whether or not the standalone coupon has decorated itself yet. */
+  const code = (source.querySelector('.coupon-code') || source).textContent.trim();
+  await loadCSS(`${window.hlx.codeBasePath}/blocks/coupon/coupon.css`);
+
+  const couponEl = document.createElement('div');
+  couponEl.className = 'coupon';
+  couponEl.append(buildTicket(code));
+  /* The coupon sits inside the banner link, but clicking it should do nothing. */
+  couponEl.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  const titles = text.querySelectorAll('.banner-title');
+  if (titles.length) titles[titles.length - 1].after(couponEl);
+  else text.append(couponEl);
+
+  /* Remove the original coupon so it no longer shows outside the banner, and drop its
+     section if it is now empty. */
+  const section = source.closest('.section');
+  (source.closest('.coupon-wrapper') || source).remove();
+  if (section && !section.querySelector('.block')) section.remove();
+  return true;
+}
+
+export default async function decorate(block) {
   const rows = [...block.querySelectorAll(':scope > div')];
   const config = {};
   let desktop = null;
@@ -267,4 +304,8 @@ export default function decorate(block) {
   }
 
   block.replaceChildren(link);
+
+  const hasCoupon = await hoistCoupon(text);
+  /* No coupon -> let the title grow a little to fill the freed space. */
+  block.classList.toggle('no-coupon', !hasCoupon);
 }
