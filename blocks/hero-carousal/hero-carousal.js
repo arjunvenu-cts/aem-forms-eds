@@ -1,42 +1,78 @@
-import { createOptimizedPicture, loadCSS } from '../../scripts/aem.js';
+import { loadCSS } from '../../scripts/aem.js';
 
 const AUTOPLAY_INTERVAL = 5000; // ms, used when the block has the `autoplay` variant
 const CONTROLS_ENABLED = false; // false: arrows, dots (pills) and thumbnails are shown but non-functional
 const PAUSE_ON_HOVER = false; // set to true to pause autoplay while the mouse is over the banner
 const TITLE_MIN_FONT = 28; // px, the heading never shrinks below this
 
-const IMAGE_BREAKPOINTS = [{ media: '(min-width: 900px)', width: '2000' }, { width: '900' }];
-const THUMB_BREAKPOINTS = [{ width: '400' }];
-
 const ICON_PREV = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M19 12H5M11 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_NEXT = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const CONTAINER_TAGS = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
-const IMAGE_URL = /\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i;
 const URL_LIKE = /^(#|\/|https?:\/\/)\S*$/i;
 
 /* ------------------------------------------------------------------ images */
 
-/**
- * Returns a <picture> for an image cell. Supports:
- *  1. a real image inserted in the document (preferred, gets optimized by EDS)
- *  2. a plain-text path or link such as /assets/images/banner-img-1.png
- */
-function buildPicture(cell, breakpoints, eager, alt = '') {
-  if (!cell) return null;
-  const img = cell.querySelector('img');
-  if (img) return createOptimizedPicture(img.src, alt, eager, breakpoints);
+const DESKTOP_MEDIA = '(width >= 900px)'; // same breakpoint as the CSS
+const IMAGE_EXT = /\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i;
 
-  const link = cell.querySelector('a[href]');
-  const src = (link ? link.href : cell.textContent).trim();
-  if (!IMAGE_URL.test(src)) return null;
+/** "assets\img\x.png" -> "/assets/img/x.png"; full URLs are kept as they are. */
+function toImageUrl(text) {
+  const clean = (text || '').trim().replace(/\\/g, '/');
+  if (!clean || !IMAGE_EXT.test(clean)) return null;
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('/')) return clean;
+  return `/${clean.replace(/^\.?\//, '')}`;
+}
 
+/** Images in a cell, in authored order: uploaded <img>, image links, or typed paths. */
+function readImages(cell) {
+  if (!cell) return [];
+  const found = [];
+  cell.querySelectorAll('img').forEach((img) => {
+    found.push({ src: img.getAttribute('src'), alt: img.getAttribute('alt') || '' });
+  });
+  cell.querySelectorAll('a[href]').forEach((a) => {
+    const src = toImageUrl(a.getAttribute('href'));
+    if (src && !a.querySelector('img')) found.push({ src, alt: '' });
+  });
+  if (!found.length) {
+    const parts = cell.querySelectorAll('p, li');
+    const texts = parts.length ? [...parts].map((p) => p.textContent) : [cell.textContent];
+    texts.flatMap((t) => t.split(/\s+/)).map(toImageUrl).filter(Boolean)
+      .forEach((src) => found.push({ src, alt: '' }));
+  }
+  return found;
+}
+
+/** Uploaded (media bus) images can be resized by URL; files in /assets/ are served as-is. */
+function sized(src, width) {
+  if (!src || !src.includes('media_')) return src;
+  const url = new URL(src, window.location.href);
+  url.searchParams.set('width', width);
+  url.searchParams.set('format', 'webply');
+  url.searchParams.set('optimize', 'medium');
+  return url.pathname + url.search;
+}
+
+/** <picture> that swaps between the desktop and mobile image at the 900px breakpoint. */
+function buildPicture(desktop, mobile, eager) {
+  const wide = desktop || mobile;
+  const small = mobile || desktop;
   const picture = document.createElement('picture');
-  const plain = document.createElement('img');
-  plain.src = src;
-  plain.alt = alt;
-  plain.loading = eager ? 'eager' : 'lazy';
-  picture.append(plain);
+
+  const source = document.createElement('source');
+  source.media = DESKTOP_MEDIA;
+  source.srcset = sized(wide.src, '2000');
+  picture.append(source);
+
+  const img = document.createElement('img');
+  img.src = sized(small.src, '750');
+  img.alt = wide.alt;
+  img.loading = eager ? 'eager' : 'lazy';
+  img.fetchPriority = eager ? 'high' : 'auto';
+  img.decoding = 'async';
+  img.draggable = false;
+  picture.append(img);
   return picture;
 }
 
@@ -275,23 +311,25 @@ function fitTitles(slides) {
 /* ------------------------------------------------------------------- block */
 
 export default async function decorate(block) {
-  // shared CTA button (JS + CSS live in the try-on-info block)
+  // shared CTA button (JS + CSS live in the try-on-info block). Only loaded when a
+  // "Try On Info (button)" block is authored on the page; without it there is no CTA.
   let tryOn = null;
   let ctaLink = null;
-  try {
-    const [mod] = await Promise.all([
-      import('../try-on-info/try-on-info.js'),
-      loadCSS(`${window.hlx.codeBasePath}/blocks/try-on-info/try-on-info.css`),
-    ]);
-    tryOn = mod;
-    // label + link come from the separately authored "Try On Info (button)" block;
-    // without it there is no CTA
-    ctaLink = mod.readTryOnLink(document.querySelector('.try-on-info.button'));
-    // the hero must never open the try-on flow: swallow the shared button's event here
-    block.addEventListener(mod.TRY_ON_EVENT, (e) => e.stopPropagation());
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error('hero-carousel: could not load the shared CTA button', e);
+  const ctaSource = document.querySelector('.try-on-info.button');
+  if (ctaSource) {
+    try {
+      const [mod] = await Promise.all([
+        import('../try-on-info/try-on-info.js'),
+        loadCSS(`${window.hlx.codeBasePath}/blocks/try-on-info/try-on-info.css`),
+      ]);
+      tryOn = mod;
+      ctaLink = mod.readTryOnLink(ctaSource);
+      // the hero must never open the try-on flow: swallow the shared button's event here
+      block.addEventListener(mod.TRY_ON_EVENT, (e) => e.stopPropagation());
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('hero-carousel: could not load the shared CTA button', e);
+    }
   }
 
   // makes the CSS independent of how the block is spelled in the document
@@ -323,17 +361,26 @@ export default async function decorate(block) {
 
     const imageWrap = document.createElement('div');
     imageWrap.className = 'hero-carousel-image';
-    const picture = buildPicture(imageCell, IMAGE_BREAKPOINTS, i === 0);
-    if (picture) imageWrap.append(picture);
+    // column 1: first image = desktop, optional second image = mobile
+    const [desktopImage, mobileImage] = readImages(imageCell);
+    if (desktopImage) imageWrap.append(buildPicture(desktopImage, mobileImage, i === 0));
+    slide.classList.toggle('has-mobile-image', Boolean(mobileImage));
     slide.append(imageWrap, buildContent(contentCell, noRedirect, tryOn, ctaLink));
 
     const thumb = document.createElement('button');
     thumb.type = 'button';
     thumb.className = 'hero-carousel-thumb';
     thumb.setAttribute('aria-label', `Go to slide ${i + 1}`);
-    const thumbPicture = buildPicture(thumbCell, THUMB_BREAKPOINTS, false)
-      || buildPicture(imageCell, THUMB_BREAKPOINTS, false);
-    if (thumbPicture) thumb.append(thumbPicture);
+    const thumbImage = readImages(thumbCell)[0] || desktopImage;
+    if (thumbImage) {
+      const thumbImg = document.createElement('img');
+      thumbImg.src = sized(thumbImage.src, '400');
+      thumbImg.alt = '';
+      thumbImg.loading = 'lazy';
+      thumbImg.decoding = 'async';
+      thumbImg.draggable = false;
+      thumb.append(thumbImg);
+    }
     thumbsEl.append(thumb);
 
     const dot = document.createElement('button');
