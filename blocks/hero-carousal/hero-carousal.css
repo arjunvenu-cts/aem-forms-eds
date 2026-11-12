@@ -1,4 +1,31 @@
-/* full-bleed: undo the 1200px section/wrapper limit from styles.css */
+/*
+ * HERO CAROUSEL - STYLES
+ * ======================
+ * This file controls how the big banner at the top of the home page looks:
+ * colours, sizes, spacing, fonts and the small hover animation on the preview pictures.
+ * The behaviour (building the banner from the document) is in hero-carousel.js.
+ *
+ * The file is read from top to bottom and is arranged like this:
+ *   1. Settings   - the banner box and the values that are most likely to be tuned
+ *                   (colours, sizes, positions)
+ *   2. Slides     - the stacked slides and their picture
+ *   3. Text       - label line, heading, description
+ *   4. Button     - size of the shared "Shop" button (its colours come from try-on-info)
+ *   5. Controls   - the arrows, dots and preview pictures under the text
+ *   6. Desktop    - everything that is different on screens 900px wide or more
+ *
+ * "Mobile" below means screens narrower than 900px. Desktop rules are at the bottom and
+ * override the mobile ones.
+ *
+ * Carousel note: the arrows, dots and thumbnails are shown but switched off (see the JS).
+ * The few styles that only matter for a working carousel are commented out below and marked
+ * "CAROUSEL FUNCTIONALITY - SWITCHED OFF".
+ */
+
+/* ============================== 1. BANNER BOX AND SETTINGS ============================== */
+
+/* Lets the banner use the full width of the screen. The site normally limits page content
+   to 1200px wide; this removes that limit for the banner only. */
 main .section > .hero-carousel-wrapper {
   max-width: none;
   margin: 0;
@@ -6,30 +33,43 @@ main .section > .hero-carousel-wrapper {
 }
 
 .hero-carousel {
+  /* Banner background colour. This is only the starting colour: the JS replaces it with a
+     colour taken from each slide's picture so the picture blends into the area below it. */
   --hero-bg: #6c4de6;
+  /* The lime green used for the active dot. */
   --hero-accent: #c4f65c;
+  /* Text and line colour (white). It uses the site's own "background colour" setting. */
   --hero-text: var(--background-color, #fff); /* white; reuses the global token */
 
   /* Heading font: the design uses a very bold, tall, narrow display face (Druk-like).
      Add the font in styles/fonts.css; until it loads, the fallbacks below are used. */
   --hero-title-font: anton, 'Druk Condensed', 'Druk Cond', impact, haettenschweiler, var(--heading-font-family);
+  /* Size of the round arrow buttons. */
   --hero-nav-size: 50px; /* arrow button size */
+  /* Space between the bottom of the banner and the arrows / dots / thumbnails. */
   --hero-nav-bottom: 28px; /* distance of arrows / dots / thumbnails from the banner bottom */
-  /* mobile image framing: position = which part of the wide image shows (100% = far right),
+  /* Picture framing. Mobile: which part of a wide picture is shown and how much it is enlarged.
+     Desktop: how far down the picture is shifted (so heads are not cut off).
+     mobile image framing: position = which part of the wide image shows (100% = far right),
      zoom > 1 enlarges it from the origin point so the people move further left */
   --hero-image-position-desktop: right 25%; /* vertical: 0% = top of the image, 50% = middle */
   --hero-image-position-mobile: 100% center;
   --hero-image-zoom-mobile: 1.1;
   --hero-image-origin-mobile: 100% 30%;
-  /* thumbnail hover: hovered card grows a little and moves diagonally, the others drop down */
+  /* Hover animation of the preview pictures: the picture under the mouse grows a little and
+     moves right and down, the pictures to its right slide over by the gap, the others drop down. */
   --hero-thumb-hover-scale: 1.08;
   --hero-thumb-hover-x: 8px;
   --hero-thumb-hover-y: 8px;
   --hero-thumb-others-y: 8px;
+  /* Space between the preview pictures. */
   --hero-thumb-gap: clamp(6px, 1vw, 16px); /* space between thumbnails (~10px at 1000px wide) */
+  /* Mobile: height of the soft fade at the bottom of the picture (0% turns it off). */
   --hero-image-fade: 18%; /* mobile: height of the fade from the image into the background colour (0% = off) */
+  /* Space between the "Shop" button and the arrows below it. */
   --hero-nav-gap: 18px; /* gap between the CTA and the arrows (as in Figma) */
 
+  /* The banner itself: a positioned box that hides anything sticking out. */
   position: relative;
   overflow: hidden;
   background-color: var(--hero-bg);
@@ -37,6 +77,11 @@ main .section > .hero-carousel-wrapper {
   transition: background-color 0.4s ease;
 }
 
+/* ============================== 2. SLIDES ============================== */
+
+/* The list that holds all slides. They are stacked on top of each other in one grid cell, so
+   only the active one is visible. The column is capped at the banner width so a long heading
+   can never make the slides wider than the screen. */
 .hero-carousel .hero-carousel-slides {
   display: grid;
   grid-template-columns: minmax(0, 1fr); /* track can't grow wider than the banner */
@@ -45,7 +90,8 @@ main .section > .hero-carousel-wrapper {
   list-style: none;
 }
 
-/* ---------- slides (stacked, cross-fade) ---------- */
+/* One slide. Hidden by default (see-through); the active one is made visible below. On mobile
+   the picture sits above the text. The slow fade is what makes the first slide appear softly. */
 .hero-carousel .hero-carousel-slide {
   grid-area: 1 / 1;
   min-width: 0;
@@ -57,19 +103,21 @@ main .section > .hero-carousel-wrapper {
   cursor: pointer;
 }
 
+/* The slide that is showing. */
 .hero-carousel .hero-carousel-slide.active {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.4s ease;
 }
 
+/* The picture area of a slide. On mobile it is a fixed shape (8 wide by 7 high). */
 .hero-carousel .hero-carousel-image {
   position: relative;
   aspect-ratio: 8 / 7;
   overflow: hidden;
 }
 
-/* mobile: soft fade from the image into the background colour below it */
+/* Mobile: a soft fade from the bottom of the picture into the background colour below it. */
 .hero-carousel .hero-carousel-image::after {
   content: '';
   position: absolute;
@@ -79,7 +127,8 @@ main .section > .hero-carousel-wrapper {
   pointer-events: none;
 }
 
-/* a separate mobile image was authored: show it as is, no zoom / re-positioning */
+/* A separate mobile picture was authored: show it as it is, without the zoom / re-positioning
+   that is used to crop the desktop picture for mobile. */
 .hero-carousel .has-mobile-image .hero-carousel-image picture {
   transform: none;
 }
@@ -88,11 +137,14 @@ main .section > .hero-carousel-wrapper {
   object-position: center;
 }
 
+/* Mobile: enlarge the picture slightly so the people fill the width. */
 .hero-carousel .hero-carousel-image picture {
   transform: scale(var(--hero-image-zoom-mobile));
   transform-origin: var(--hero-image-origin-mobile);
 }
 
+/* The picture fills the whole picture area, edge to edge (it is cropped if the shapes differ).
+   It cannot be clicked, selected or dragged. */
 .hero-carousel .hero-carousel-image picture,
 .hero-carousel .hero-carousel-image img {
   display: block;
@@ -105,12 +157,15 @@ main .section > .hero-carousel-wrapper {
   -webkit-user-drag: none;
 }
 
-/* ---------- content ---------- */
+/* ============================== 3. TEXT ============================== */
+
+/* The text area of a slide: label line, heading, description and button. */
 .hero-carousel .hero-carousel-content {
   min-width: 0;
   padding: 20px 16px 16px;
 }
 
+/* The small label line above the heading, e.g. "AW 26-27  THANKSGIVING". */
 .hero-carousel .hero-carousel-eyebrow {
   margin: 0;
   font-family: var(--body-font-family);
@@ -122,6 +177,8 @@ main .section > .hero-carousel-wrapper {
   line-height: 1.2;
 }
 
+/* The large heading. It stays on one line per authored line; the JS makes the font smaller
+   when a line is too wide for the screen. */
 .hero-carousel .hero-carousel-title {
   margin: 6px 0 14px;
   font-family: var(--hero-title-font);
@@ -132,21 +189,27 @@ main .section > .hero-carousel-wrapper {
   white-space: nowrap; /* only authored line breaks; JS shrinks the font if a line is too wide */
 }
 
+/* The short description under the heading. */
 .hero-carousel .hero-carousel-description {
   margin: 0 0 24px;
   font-size: clamp(14px, 3.8vw, 20px);
   line-height: 1.35;
 }
 
+/* ============================== 4. BUTTON ============================== */
+
 /*
- * CTA = the shared button of the try-on-info block (styles come from
- * blocks/try-on-info/try-on-info.css, loaded by the JS). Only the layout is set here.
+ * The "Shop" button is the shared button of the try-on-info block. Its colours, font and
+ * sparkle come from blocks/try-on-info/try-on-info.css (loaded by the JS). Only its size and
+ * position are set here.
  */
+/* The box around the button: removes the maximum width and top space the shared style adds. */
 .hero-carousel .hero-carousel-cta-wrap {
   max-width: none;
   margin: 0;
 }
 
+/* Mobile button size: full width, 48px tall (as in the design). */
 .hero-carousel .try-on-info .try-on-info-button {
   gap: 10px;
   height: 48px; /* Figma mobile: about 47px tall on a 375px screen */
@@ -154,12 +217,26 @@ main .section > .hero-carousel-wrapper {
   font-size: 16px;
 }
 
+/* The sparkle star inside the button grows and shrinks with the button text. */
 .hero-carousel .try-on-info .try-on-info-sparkle {
   width: 1.3em; /* sparkle scales with the text */
   height: 1.3em;
 }
 
-/* ---------- controls (mobile: thumbnails row, then [prev] dots [next]) ---------- */
+/* NO HOVER EFFECT: the shared button gets slightly darker when the mouse is over it (or when
+   it is selected with the keyboard). That is switched off here, so the button looks the same
+   in every state. */
+.hero-carousel .try-on-info .try-on-info-button,
+.hero-carousel .try-on-info .try-on-info-button:hover,
+.hero-carousel .try-on-info .try-on-info-button:focus-visible {
+  filter: none;
+  transition: none;
+}
+
+/* ============================== 5. CONTROLS ============================== */
+
+/* Mobile: the row of preview pictures comes first, then this row with the left arrow, the dots
+   in the middle and the right arrow. It always sits above the text so nothing covers it. */
 .hero-carousel .hero-carousel-nav {
   position: relative;
   z-index: 3; /* always above the slide text and image so the buttons stay clickable */
@@ -169,19 +246,25 @@ main .section > .hero-carousel-wrapper {
   padding: 0 16px 24px;
 }
 
+/* Order inside the row on mobile: left arrow, dots, right arrow. */
 .hero-carousel .hero-carousel-prev {
   order: 1;
 }
 
-/* non-functional controls (CONTROLS_ENABLED = false in the JS): same look, no hover/pointer */
+/* The arrows, dots and thumbnails are switched off, so they show a normal mouse pointer
+   (not the "clickable hand"). */
 .hero-carousel [aria-disabled='true'] {
   cursor: default;
 }
 
+/* CAROUSEL FUNCTIONALITY - SWITCHED OFF (kept for later, do not delete)
+   This keeps a switched-off arrow looking the same on hover. It is only needed while the
+   arrow hover below is switched on, so both are commented out together.
 .hero-carousel .hero-carousel-arrow[aria-disabled='true']:hover {
   background-color: transparent;
   color: var(--hero-text);
 }
+*/
 
 .hero-carousel .hero-carousel-dots {
   order: 2;
@@ -191,6 +274,7 @@ main .section > .hero-carousel-wrapper {
   order: 3;
 }
 
+/* The round left / right arrow buttons: a thin white circle with the arrow inside. */
 .hero-carousel .hero-carousel-arrow {
   display: inline-flex;
   align-items: center;
@@ -206,18 +290,22 @@ main .section > .hero-carousel-wrapper {
   transition: background-color 0.2s, color 0.2s;
 }
 
+/* CAROUSEL FUNCTIONALITY - SWITCHED OFF (kept for later, do not delete)
+   Hover effect of a working arrow: it fills with white when the mouse is over it.
 .hero-carousel .hero-carousel-arrow:hover {
   background-color: var(--hero-text);
   color: var(--hero-bg);
 }
+*/
 
+/* The dots (pills) between the arrows. */
 .hero-carousel .hero-carousel-dots {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* 24px tap target, small visible dot */
+/* One dot. The button is 24px high (easy to tap) but the visible dot is small (below). */
 .hero-carousel .hero-carousel-dot {
   display: flex;
   align-items: center;
@@ -228,6 +316,7 @@ main .section > .hero-carousel-wrapper {
   cursor: pointer;
 }
 
+/* The visible dot: a small light circle. */
 .hero-carousel .hero-carousel-dot::before {
   content: '';
   width: 8px;
@@ -237,17 +326,21 @@ main .section > .hero-carousel-wrapper {
   transition: width 0.25s ease, background-color 0.25s ease;
 }
 
+/* The dot of the slide that is showing: a longer green pill. */
 .hero-carousel .hero-carousel-dot.active::before {
   width: 32px;
   background-color: var(--hero-accent);
 }
 
+/* The row of small preview pictures (thumbnails). */
 .hero-carousel .hero-carousel-thumbs {
   display: flex;
   gap: var(--hero-thumb-gap);
   padding: 4px 16px 20px;
 }
 
+/* One preview picture: a white frame around a small picture. On mobile they share the row
+   equally. */
 .hero-carousel .hero-carousel-thumb {
   box-sizing: border-box;
   flex: 1 1 0;
@@ -262,6 +355,7 @@ main .section > .hero-carousel-wrapper {
   transition: transform 0.25s ease;
 }
 
+/* The small picture inside the frame. */
 .hero-carousel .hero-carousel-thumb img {
   display: block;
   width: 100%;
@@ -270,6 +364,7 @@ main .section > .hero-carousel-wrapper {
   object-position: right center;
 }
 
+/* Hover animation of the preview pictures (only on devices that have a mouse). */
 @media (hover: hover) {
   /* the other cards move down a bit */
   .hero-carousel .hero-carousel-thumbs:hover .hero-carousel-thumb {
@@ -288,32 +383,40 @@ main .section > .hero-carousel-wrapper {
   }
 }
 
+/* For people who have asked their device to reduce motion: no preview picture animation. */
 @media (prefers-reduced-motion: reduce) {
   .hero-carousel .hero-carousel-thumb {
     transition: none;
   }
 }
 
+/* Heading lines: on mobile they run together on one line ("GRATEFUL FOR DRIP"). */
 .hero-carousel .hero-carousel-title-line {
   display: inline; /* mobile: "GRATEFUL FOR DRIP" on one line */
 }
 
+/* A clear white outline around whatever is selected with the keyboard (Tab key). */
 .hero-carousel button:focus-visible,
 .hero-carousel a:focus-visible {
   outline: 3px solid var(--hero-text);
   outline-offset: 3px;
 }
 
-/* ---------- desktop ---------- */
+/* ============================== 6. DESKTOP (900px and wider) ============================== */
+
 @media (width >= 900px) {
   .hero-carousel {
     --hero-nav-bottom: clamp(32px, 5vw, 80px);
   }
 
+  /* Desktop: each heading line sits on its own row ("LAYER UP." above "STAND OUT."). */
   .hero-carousel .hero-carousel-title-line {
     display: block;
   }
 
+  /* Desktop slide: the text sits on the left, right above the arrows; the picture fills the
+     whole banner behind it. The banner keeps the design's proportions (949 wide by 547 high)
+     and gets taller only if the text needs more room. */
   .hero-carousel .hero-carousel-slide {
     position: relative;
     box-sizing: border-box;
@@ -329,6 +432,7 @@ main .section > .hero-carousel-wrapper {
     padding-bottom: calc(var(--hero-nav-bottom) + var(--hero-nav-size) + var(--hero-nav-gap));
   }
 
+  /* Desktop: the picture covers the whole slide, behind the text. */
   .hero-carousel .hero-carousel-image {
     position: absolute;
     inset: 0;
@@ -348,6 +452,7 @@ main .section > .hero-carousel-wrapper {
     display: none; /* the image fills the whole banner on desktop, nothing to fade */
   }
 
+  /* Desktop: the text takes the left part of the banner. */
   .hero-carousel .hero-carousel-content {
     position: relative;
     width: min(42%, 620px);
@@ -373,7 +478,8 @@ main .section > .hero-carousel-wrapper {
     line-height: 1.5;
   }
 
-  /* desktop: button hugs its text instead of spanning the column */
+  /* Desktop button size: as wide as its text (with a minimum width) instead of full width,
+     and taller / larger text on bigger screens. */
   .hero-carousel .try-on-info .try-on-info-button {
     display: inline-flex;
     width: auto;
@@ -384,6 +490,7 @@ main .section > .hero-carousel-wrapper {
     font-size: clamp(24px, 2.1vw, 36px);
   }
 
+  /* Desktop: the arrows and dots sit in the bottom-left corner, under the button. */
   .hero-carousel .hero-carousel-nav {
     position: absolute;
     left: 4.5vw;
@@ -393,6 +500,7 @@ main .section > .hero-carousel-wrapper {
     padding: 0;
   }
 
+  /* Desktop order: left arrow, right arrow, then the dots (the mobile order is not used). */
   .hero-carousel .hero-carousel-prev,
   .hero-carousel .hero-carousel-dots,
   .hero-carousel .hero-carousel-next {
@@ -403,6 +511,7 @@ main .section > .hero-carousel-wrapper {
     margin-left: 8px;
   }
 
+  /* Desktop: the preview pictures sit in the bottom-right corner, over the main picture. */
   .hero-carousel .hero-carousel-thumbs {
     position: absolute;
     right: 4.5vw;
@@ -413,6 +522,7 @@ main .section > .hero-carousel-wrapper {
     padding: 0;
   }
 
+  /* Desktop: each preview picture has a fixed size that grows a little with the screen. */
   .hero-carousel .hero-carousel-thumb {
     flex: none;
     width: clamp(110px, 14.5vw, 210px);
@@ -420,6 +530,8 @@ main .section > .hero-carousel-wrapper {
   }
 }
 
+/* For people who have asked their device to reduce motion: no fading between slides and no
+   dot animation. */
 @media (prefers-reduced-motion: reduce) {
   .hero-carousel .hero-carousel-slide,
   .hero-carousel .hero-carousel-slide.active,

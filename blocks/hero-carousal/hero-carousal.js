@@ -1,21 +1,62 @@
+/*
+ * HERO CAROUSEL BLOCK
+ * ===================
+ * What it shows: the big banner at the top of the home page. It has a background image, a
+ * small label line (the "eyebrow"), a large heading, a short description and a button.
+ * Under the text there is a row of small preview pictures (thumbnails) and a row of
+ * left / right arrows with dots.
+ *
+ * How it is written in the document (one table row per slide):
+ *   column 1 - the image (1st image = desktop, optional 2nd image = mobile)
+ *   column 2 - the text: label line, heading (a Heading style or all-bold lines), description
+ *   column 3 - (optional) the thumbnail image; the slide image is used when left empty
+ *
+ * The button is NOT written inside this block. Add a separate "Try On Info (button)" block
+ * on the page: its link text becomes the button label and its link the button destination.
+ *
+ * Option (written in brackets after the block name, e.g. "Hero Carousel (no-redirect)"):
+ *   no-redirect - the button is clickable but never leaves the page, even with a real link
+ *
+ * Current state: the carousel part (arrows, dots, thumbnail clicks, swipe and autoplay) is
+ * switched OFF. The arrows, dots and thumbnails are still shown as in the design, but they
+ * do nothing when clicked. The code for it is kept, commented out, in the places marked
+ * "CAROUSEL FUNCTIONALITY - SWITCHED OFF" so it can be turned back on later.
+ *
+ * Events this block sends (for analytics or future features):
+ *   hero-carousel:banner-click - someone clicked on a slide
+ *   hero-carousel:cta-click    - someone clicked the button
+ */
 import { loadCSS } from '../../scripts/aem.js';
 
-const AUTOPLAY_INTERVAL = 5000; // ms, used when the block has the `autoplay` variant
-const CONTROLS_ENABLED = false; // false: arrows, dots (pills) and thumbnails are shown but non-functional
-const PAUSE_ON_HOVER = false; // set to true to pause autoplay while the mouse is over the banner
-const TITLE_MIN_FONT = 28; // px, the heading never shrinks below this
+/* ----------------------------------------------------------------- settings */
 
+// CAROUSEL FUNCTIONALITY - SWITCHED OFF (kept for later, do not delete).
+// To turn the carousel back on, uncomment these three lines and the other marked blocks below.
+// const AUTOPLAY_INTERVAL = 5000; // how long each slide stays before auto-advancing (milliseconds)
+// const CONTROLS_ENABLED = false; // true = arrows, dots and thumbnails work; false = shown only
+// const PAUSE_ON_HOVER = false; // true = autoplay pauses while the mouse is over the banner
+
+// The heading shrinks to fit the banner, but never below this size (in pixels).
+const TITLE_MIN_FONT = 28;
+
+// Small pictures (SVG) drawn inside the round left / right arrow buttons.
 const ICON_PREV = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M19 12H5M11 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_NEXT = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+// HTML tags that start a new line of text when the text cell is read (see collectLines).
 const CONTAINER_TAGS = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+// Matches text that is just a link or "#" (such text is not shown as description).
 const URL_LIKE = /^(#|\/|https?:\/\/)\S*$/i;
 
 /* ------------------------------------------------------------------ images */
 
+// Screen width where the layout switches from mobile to desktop (same as the CSS).
 const DESKTOP_MEDIA = '(width >= 900px)'; // same breakpoint as the CSS
+// File endings that count as a picture.
 const IMAGE_EXT = /\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i;
 
+// WHAT IT DOES: turns a typed picture path into a clean web address (fixes slashes, adds a
+// leading "/"). Returns nothing if the text is not a picture file name.
 /** "assets\img\x.png" -> "/assets/img/x.png"; full URLs are kept as they are. */
 function toImageUrl(text) {
   const clean = (text || '').trim().replace(/\\/g, '/');
@@ -24,6 +65,8 @@ function toImageUrl(text) {
   return `/${clean.replace(/^\.?\//, '')}`;
 }
 
+// WHAT IT DOES: finds the pictures in a table cell, in the order they were written. Works for
+// uploaded pictures, picture links and typed paths like /assets/images/banner.png.
 /** Images in a cell, in authored order: uploaded <img>, image links, or typed paths. */
 function readImages(cell) {
   if (!cell) return [];
@@ -44,6 +87,8 @@ function readImages(cell) {
   return found;
 }
 
+// WHAT IT DOES: asks the server for a smaller copy of an uploaded picture (faster loading).
+// Pictures stored in /assets/ are used as they are.
 /** Uploaded (media bus) images can be resized by URL; files in /assets/ are served as-is. */
 function sized(src, width) {
   if (!src || !src.includes('media_')) return src;
@@ -54,6 +99,9 @@ function sized(src, width) {
   return url.pathname + url.search;
 }
 
+// WHAT IT DOES: builds the picture shown behind a slide. It uses the desktop image on wide
+// screens and the mobile image (or the same one) on small screens. Only the first slide loads
+// straight away; the others load later to keep the page fast.
 /** <picture> that swaps between the desktop and mobile image at the 900px breakpoint. */
 function buildPicture(desktop, mobile, eager) {
   const wide = desktop || mobile;
@@ -78,6 +126,9 @@ function buildPicture(desktop, mobile, eager) {
 
 /* ----------------------------------------------------------------- content */
 
+// WHAT IT DOES: reads the text cell and splits it into separate lines (a new paragraph, a
+// heading or a line break starts a new line). For every line it notes whether it is a heading
+// (Heading style or fully bold) and whether it contains a link.
 /**
  * Flattens the content cell into "lines". A new line starts at every block element
  * (p, h1-h6, li ...) and at every line break (<br> / Shift+Enter).
@@ -119,6 +170,8 @@ function collectLines(root) {
   return lines;
 }
 
+// WHAT IT DOES: decides if the button link is a real destination. A "#" or empty link, or a
+// link to the same page, is not real, so the button stays on the page.
 /**
  * A CTA authored with a real link navigates to it. A placeholder ("#" or empty) or the
  * `no-redirect` variant gives a button that is clickable but goes nowhere.
@@ -134,6 +187,9 @@ function isRealLink(raw, href) {
   }
 }
 
+// WHAT IT DOES: creates the "Shop" button using the shared button from the try-on-info block
+// (same look everywhere on the site). A real link opens that page; otherwise the button is
+// clickable but goes nowhere.
 /**
  * The CTA is the shared button of the try-on-info block (same look, sparkle and hover).
  * - real link          -> normal <a> to that URL
@@ -154,6 +210,8 @@ function buildCta(label, href, redirect, tryOn) {
   return wrap;
 }
 
+// WHAT IT DOES: puts each heading line in its own piece. On desktop the lines are stacked;
+// on mobile they run together on one line (controlled by the CSS).
 /** Heading lines: stacked on desktop, run together on one line on mobile (see CSS). */
 function titleLines(lines) {
   const frag = document.createDocumentFragment();
@@ -167,6 +225,7 @@ function titleLines(lines) {
   return frag;
 }
 
+// WHAT IT DOES: joins text lines together with a line break between them.
 function textWithBreaks(lines) {
   const frag = document.createDocumentFragment();
   lines.forEach((line, i) => {
@@ -176,6 +235,8 @@ function textWithBreaks(lines) {
   return frag;
 }
 
+// WHAT IT DOES: builds the text side of a slide: label line, heading, description and button.
+// It decides which line is which from how the text is formatted (see the rules below).
 /**
  * How the code tells the parts apart (no commas needed, it's based on the formatting):
  *  - Heading     : a Heading style (H1-H6) OR lines that are fully bold
@@ -238,6 +299,10 @@ function buildContent(cell, noRedirect, tryOn, ctaLink) {
 
 /* ------------------------------------------------------- background colour */
 
+// WHAT IT DOES: looks at the bottom edge of a picture and returns its most common colour.
+// That colour is used as the banner background so the picture blends into the area below it
+// on mobile. If the browser does not allow reading the picture, nothing is returned and the
+// default purple is kept.
 /**
  * Picks the dominant colour along the bottom edge of an image, so the area below the
  * image (mobile) blends into it. Returns null if the pixels can't be read.
@@ -275,6 +340,9 @@ function getEdgeColor(img) {
 
 /* ------------------------------------------------------------- title fit */
 
+// WHAT IT DOES: makes sure the heading never runs out of the banner. It starts at the normal
+// size and makes it a little smaller, step by step, until every line fits and the whole text
+// block fits inside the banner. Short headings keep the full size.
 /**
  * Shrinks a slide's heading until every authored line fits on one line (no extra
  * wrapping) and the text still fits inside the banner. Starts from the CSS font size,
@@ -310,9 +378,12 @@ function fitTitles(slides) {
 
 /* ------------------------------------------------------------------- block */
 
+// WHAT IT DOES: this is the main function. The site calls it once for every hero block on the
+// page. It reads the authored table and replaces it with the finished banner.
 export default async function decorate(block) {
-  // shared CTA button (JS + CSS live in the try-on-info block). Only loaded when a
-  // "Try On Info (button)" block is authored on the page; without it there is no CTA.
+  // ---- Step 1: load the shared "Shop" button (only if the page has one) ------------------
+  // The button's code and styles live in the try-on-info block. They are loaded only when a
+  // "Try On Info (button)" block is on the page; without it the banner has no button.
   let tryOn = null;
   let ctaLink = null;
   const ctaSource = document.querySelector('.try-on-info.button');
@@ -324,7 +395,8 @@ export default async function decorate(block) {
       ]);
       tryOn = mod;
       ctaLink = mod.readTryOnLink(ctaSource);
-      // the hero must never open the try-on flow: swallow the shared button's event here
+      // The shared button announces "open try-on" for "#" links. The banner must never open
+      // that, so the announcement is stopped here.
       block.addEventListener(mod.TRY_ON_EVENT, (e) => e.stopPropagation());
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -332,14 +404,16 @@ export default async function decorate(block) {
     }
   }
 
-  // makes the CSS independent of how the block is spelled in the document
+  // ---- Step 2: prepare the block ---------------------------------------------------------
+  // Add the class the styles are written for, whatever way the block name was spelled.
   block.classList.add('hero-carousel');
   if (block.parentElement) block.parentElement.classList.add('hero-carousel-wrapper');
 
-  const noRedirect = block.classList.contains('no-redirect');
-  const rows = [...block.children];
+  const noRedirect = block.classList.contains('no-redirect'); // the "(no-redirect)" option
+  const rows = [...block.children]; // one authored row = one slide
   const total = rows.length;
 
+  // Containers that will hold the slides, the thumbnails and the dots.
   const slidesEl = document.createElement('ul');
   slidesEl.className = 'hero-carousel-slides';
 
@@ -349,8 +423,9 @@ export default async function decorate(block) {
   const dotsEl = document.createElement('div');
   dotsEl.className = 'hero-carousel-dots';
 
+  // ---- Step 3: build every slide, its thumbnail and its dot ------------------------------
   rows.forEach((row, i) => {
-    // Authoring columns: 1 = image, 2 = content, 3 = (optional) thumbnail image
+    // Table columns: 1 = image, 2 = text, 3 = (optional) thumbnail image
     const [imageCell, contentCell, thumbCell] = [...row.children];
 
     const slide = document.createElement('li');
@@ -359,14 +434,16 @@ export default async function decorate(block) {
     slide.setAttribute('aria-roledescription', 'slide');
     slide.setAttribute('aria-label', `${i + 1} of ${total}`);
 
+    // The slide picture (first image = desktop, optional second image = mobile).
     const imageWrap = document.createElement('div');
     imageWrap.className = 'hero-carousel-image';
-    // column 1: first image = desktop, optional second image = mobile
     const [desktopImage, mobileImage] = readImages(imageCell);
     if (desktopImage) imageWrap.append(buildPicture(desktopImage, mobileImage, i === 0));
+    // Remember if a separate mobile image was authored (the styles then skip the mobile zoom).
     slide.classList.toggle('has-mobile-image', Boolean(mobileImage));
     slide.append(imageWrap, buildContent(contentCell, noRedirect, tryOn, ctaLink));
 
+    // The small preview picture for this slide (third column, or the slide image).
     const thumb = document.createElement('button');
     thumb.type = 'button';
     thumb.className = 'hero-carousel-thumb';
@@ -383,6 +460,7 @@ export default async function decorate(block) {
     }
     thumbsEl.append(thumb);
 
+    // The dot (pill) for this slide.
     const dot = document.createElement('button');
     dot.type = 'button';
     dot.className = 'hero-carousel-dot';
@@ -392,6 +470,7 @@ export default async function decorate(block) {
     slidesEl.append(slide);
   });
 
+  // ---- Step 4: build the left / right arrow buttons and the row that holds them ----------
   const prev = document.createElement('button');
   prev.type = 'button';
   prev.className = 'hero-carousel-arrow hero-carousel-prev';
@@ -408,11 +487,17 @@ export default async function decorate(block) {
   nav.className = 'hero-carousel-nav';
   nav.append(prev, next, dotsEl);
 
-  const autoplay = block.classList.contains('autoplay')
-    && total > 1
-    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  slidesEl.setAttribute('aria-live', autoplay ? 'off' : 'polite');
+  // CAROUSEL FUNCTIONALITY - SWITCHED OFF (autoplay setting, kept for later)
+  // Autoplay only ran with the "(autoplay)" option, with more than one slide, and for people
+  // who have not asked their device to reduce motion.
+  // const autoplay = block.classList.contains('autoplay')
+  //   && total > 1
+  //   && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // slidesEl.setAttribute('aria-live', autoplay ? 'off' : 'polite');
+  // Screen readers announce a slide change politely (no automatic changes are happening now).
+  slidesEl.setAttribute('aria-live', 'polite');
 
+  // ---- Step 5: replace the authored table with the finished banner -----------------------
   block.textContent = '';
   block.setAttribute('role', 'region');
   block.setAttribute('aria-roledescription', 'carousel');
@@ -423,10 +508,12 @@ export default async function decorate(block) {
   const thumbs = [...thumbsEl.children];
   const dots = [...dotsEl.children];
 
-  let current = 0;
-  let timer = null;
+  let current = 0; // number of the slide that is showing (0 = first)
+  // CAROUSEL FUNCTIONALITY - SWITCHED OFF (autoplay timer, kept for later)
+  // let timer = null; // the clock that moves to the next slide
 
-  // each slide's background colour, sampled from its image (shown below the image on mobile)
+  // ---- Step 6: background colour taken from each slide's picture -------------------------
+  // The colour under the picture (mobile) follows the active slide's picture, so the two blend.
   const colors = [];
   const applyColor = () => {
     if (colors[current]) block.style.setProperty('--hero-bg', colors[current]);
@@ -439,17 +526,22 @@ export default async function decorate(block) {
       colors[i] = getEdgeColor(img);
       if (i === current) applyColor();
     };
+    // Read the colour as soon as the picture has loaded.
     if (img.complete && img.naturalWidth) sample();
     else img.addEventListener('load', sample, { once: true });
   });
 
+  // ---- Step 7: show one slide ------------------------------------------------------------
+  // WHAT IT DOES: makes the chosen slide visible and hides the others. It also highlights the
+  // matching thumbnail and dot and updates the background colour. It is used once at the start
+  // to show the first slide (and by the switched-off carousel code to move between slides).
   function goTo(index) {
-    current = (index + total) % total;
+    current = (index + total) % total; // wraps around: after the last slide comes the first
     slides.forEach((slide, i) => {
       const active = i === current;
       slide.classList.toggle('active', active);
       slide.setAttribute('aria-hidden', String(!active));
-      slide.inert = !active; // keeps hidden slides' CTA out of the tab order
+      slide.inert = !active; // keeps hidden slides' button out of the keyboard Tab order
     });
     thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
     applyColor();
@@ -460,80 +552,105 @@ export default async function decorate(block) {
     });
   }
 
-  /* autoplay: runs only with the `autoplay` variant */
-  const stop = () => {
-    clearInterval(timer);
-    timer = null;
-  };
-  const start = () => {
-    if (!autoplay || timer || document.hidden) return;
-    timer = setInterval(() => goTo(current + 1), AUTOPLAY_INTERVAL);
-  };
-  // any user navigation (arrows, dots, thumbnails, keys, swipe) restarts the countdown
-  const go = (index) => {
-    goTo(index);
-    if (autoplay) {
-      stop();
-      start();
-    }
-  };
-
+  // ---- Step 8: arrows, dots and thumbnails (shown, but not working) ----------------------
   if (total > 1) {
+    // Show the thumbnails and the arrow / dot row (only when there is more than one slide).
     block.append(thumbsEl, nav);
-    if (CONTROLS_ENABLED) {
-      thumbs.forEach((t, i) => t.addEventListener('click', () => go(i)));
-      prev.addEventListener('click', () => go(current - 1));
-      next.addEventListener('click', () => go(current + 1));
-      dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
-      block.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') go(current - 1);
-        if (e.key === 'ArrowRight') go(current + 1);
-      });
-    } else {
-      // shown as per design, but not interactive
-      [prev, next, ...dots, ...thumbs].forEach((btn) => {
-        btn.setAttribute('aria-disabled', 'true');
-        btn.tabIndex = -1;
-      });
-    }
 
-    let startX = null;
-    slidesEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-    slidesEl.addEventListener('touchend', (e) => {
-      if (startX === null) return;
-      const dx = e.changedTouches[0].clientX - startX;
-      startX = null;
-      if (Math.abs(dx) > 50) go(dx < 0 ? current + 1 : current - 1);
+    // They look as in the design but are switched off: they are marked as disabled for screen
+    // readers and skipped by the Tab key. Clicking them does nothing.
+    [prev, next, ...dots, ...thumbs].forEach((btn) => {
+      btn.setAttribute('aria-disabled', 'true');
+      btn.tabIndex = -1;
     });
-
-    if (autoplay) {
-      // pause only for keyboard focus (a mouse click on an arrow must not pause it)
-      block.addEventListener('focusin', (e) => {
-        if (e.target.matches(':focus-visible')) stop();
-      });
-      block.addEventListener('focusout', (e) => {
-        if (!block.contains(e.relatedTarget)) start();
-      });
-      if (PAUSE_ON_HOVER) {
-        block.addEventListener('mouseenter', stop);
-        block.addEventListener('mouseleave', start);
-      }
-      document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
-    }
   }
 
-  // AC1 + AC3: the banner is clickable but does not navigate anywhere.
-  // Only an event is emitted, so analytics / future behaviour can hook in.
+  // =========================================================================================
+  // CAROUSEL FUNCTIONALITY - SWITCHED OFF (kept for later, do not delete)
+  // Everything below up to the closing marker is the code that moves between slides: autoplay,
+  // the arrow / dot / thumbnail clicks, the keyboard arrow keys and swipe on touch screens.
+  // To turn it back on:
+  //   1. uncomment the settings at the top of this file, the "autoplay setting" and "autoplay
+  //      timer" lines above, and this whole section;
+  //   2. delete the "disabled" loop in Step 8 (the one that sets aria-disabled);
+  //   3. remove the matching "[aria-disabled]" rules in hero-carousel.css.
+  // =========================================================================================
+  //
+  // // Autoplay: stop and start the clock that moves to the next slide.
+  // const stop = () => {
+  //   clearInterval(timer);
+  //   timer = null;
+  // };
+  // const start = () => {
+  //   if (!autoplay || timer || document.hidden) return;
+  //   timer = setInterval(() => goTo(current + 1), AUTOPLAY_INTERVAL);
+  // };
+  // // Any manual move (arrow, dot, thumbnail, key, swipe) restarts the countdown.
+  // const go = (index) => {
+  //   goTo(index);
+  //   if (autoplay) {
+  //     stop();
+  //     start();
+  //   }
+  // };
+  //
+  // if (total > 1) {
+  //   if (CONTROLS_ENABLED) {
+  //     // Clicking a thumbnail, arrow or dot moves to that slide.
+  //     thumbs.forEach((t, i) => t.addEventListener('click', () => go(i)));
+  //     prev.addEventListener('click', () => go(current - 1));
+  //     next.addEventListener('click', () => go(current + 1));
+  //     dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
+  //     // The left / right keyboard keys also move between slides.
+  //     block.addEventListener('keydown', (e) => {
+  //       if (e.key === 'ArrowLeft') go(current - 1);
+  //       if (e.key === 'ArrowRight') go(current + 1);
+  //     });
+  //   }
+  //
+  //   // Swipe left / right on a touch screen.
+  //   let startX = null;
+  //   slidesEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+  //   slidesEl.addEventListener('touchend', (e) => {
+  //     if (startX === null) return;
+  //     const dx = e.changedTouches[0].clientX - startX;
+  //     startX = null;
+  //     if (Math.abs(dx) > 50) go(dx < 0 ? current + 1 : current - 1);
+  //   });
+  //
+  //   // Autoplay pauses while the keyboard is used inside the banner, and while the tab is hidden.
+  //   if (autoplay) {
+  //     block.addEventListener('focusin', (e) => {
+  //       if (e.target.matches(':focus-visible')) stop();
+  //     });
+  //     block.addEventListener('focusout', (e) => {
+  //       if (!block.contains(e.relatedTarget)) start();
+  //     });
+  //     if (PAUSE_ON_HOVER) {
+  //       block.addEventListener('mouseenter', stop);
+  //       block.addEventListener('mouseleave', start);
+  //     }
+  //     document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  //   }
+  // }
+  // =========================================================================================
+  // END OF CAROUSEL FUNCTIONALITY - SWITCHED OFF
+  // =========================================================================================
+
+  // ---- Step 9: clicks on the banner and on the button -------------------------------------
+  // Clicking the banner does not open anything. It only sends a "banner-click" event so that
+  // analytics or a future feature can react to it.
   slides.forEach((slide, i) => {
     slide.addEventListener('click', () => {
       block.dispatchEvent(new CustomEvent('hero-carousel:banner-click', { bubbles: true, detail: { index: i } }));
     });
 
-    // AC2: CTA is clickable. Navigates when authored with a real link (see isRealLink).
+    // The button is clickable. It opens a page only when it was authored with a real link
+    // (see isRealLink). Either way a "cta-click" event is sent.
     const cta = slide.querySelector('.hero-carousel-cta');
     if (cta) {
       cta.addEventListener('click', (e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // so the click is not also counted as a banner click
         block.dispatchEvent(new CustomEvent('hero-carousel:cta-click', {
           bubbles: true,
           detail: {
@@ -546,10 +663,14 @@ export default async function decorate(block) {
     }
   });
 
+  // Show the first slide.
   goTo(0);
-  start();
+  // CAROUSEL FUNCTIONALITY - SWITCHED OFF: start the autoplay clock
+  // start();
 
-  // keep the heading inside the banner: on first display, on resize and once fonts load
+  // ---- Step 10: keep the heading inside the banner ----------------------------------------
+  // The heading is re-fitted when the banner first appears, when the window is resized and
+  // when the web fonts finish loading (fonts change the text width).
   let fitFrame = 0;
   const scheduleFit = () => {
     cancelAnimationFrame(fitFrame);
