@@ -36,7 +36,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 9px;
-  align-items: stretch; /* Ensures all cards in a row stretch to equal height */
+  align-items: stretch; 
+  align-self: start;
 }
 
 @media (width >= 600px) {
@@ -53,7 +54,6 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  height: 100%; /* Stretch full height of grid cell */
   box-sizing: border-box;
 }
 
@@ -142,6 +142,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
+  min-height: 32px;
 }
 
 .products .products-card-price,
@@ -394,7 +395,6 @@
 
 main > .section:has(.products.collection) {
   padding-bottom: 24px;
-  background-color: #f9f9f9;
 }
 
 .products.collection {
