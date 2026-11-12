@@ -1,6 +1,27 @@
+/*
+ * Vibe Cards block ("Pick Your Vibe")
+ * Category banners: photo on top, title, text and a round arrow on black.
+ * Each banner is its own link ("#" = clickable placeholder, no redirect).
+ * Desktop: 3 banners in a row (max 1441px).
+ * Mobile: swipeable row, middle banner centred, side banners tucked behind it, dots below.
+ *
+ * Authoring (one row per banner):
+ *   | Vibe Cards                     |                     |                         |   |
+ *   | /assets/vibes/dial-up-drip.jpg | Dial-Up ⇧↵ Drip     | Throwbacks for today... | # |
+ * Columns: image (URL/path or pasted image) | title (Shift+Enter = line break)
+ *          | description | link
+ */
 
 const MOBILE = window.matchMedia('(width < 900px)');
+const IMAGE_URL = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
 
+/**
+ * Creates an element with an optional class and text.
+ * @param {string} tag Tag name
+ * @param {string} [className] CSS class
+ * @param {string} [text] Text content
+ * @returns {HTMLElement}
+ */
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -8,7 +29,11 @@ function el(tag, className, text) {
   return node;
 }
 
-/** allows relative paths and http(s) urls only */
+/**
+ * Allows relative paths and http(s) URLs only (blocks javascript: etc.).
+ * @param {string} url Authored URL
+ * @returns {string} Safe URL, or '' if not allowed
+ */
 function safeUrl(url) {
   const trimmed = (url || '').trim();
   if (!trimmed || trimmed === '#') return '';
@@ -21,6 +46,11 @@ function safeUrl(url) {
   }
 }
 
+/**
+ * Reads text and keeps every <br> (Shift+Enter) as a line break.
+ * @param {Element} node Element to read
+ * @returns {string} Text with "\n" between lines
+ */
 function textWithBreaks(node) {
   const copy = node.cloneNode(true);
   copy.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
@@ -28,13 +58,28 @@ function textWithBreaks(node) {
 }
 
 /**
- * Splits a row into picture, title, description and link.
- * Each text cell is read on its own: the first is the title (its lines / paragraphs
- * become line breaks), the next ones form the description. A cell holding only "#",
- * a path or a link is the card link.
+ * Gets the banner image: a pasted picture, or an image URL/path authored in the first cell.
+ * @param {Element} row Authored row
+ * @returns {Element|null} <picture> or <img>
+ */
+function readImage(row) {
+  const pasted = row.querySelector('picture') || row.querySelector('img');
+  if (pasted) return pasted;
+  const first = row.children[0];
+  const url = (first?.querySelector('a[href]')?.getAttribute('href') || first?.textContent || '').trim();
+  if (!IMAGE_URL.test(url) || !safeUrl(url)) return null;
+  first.textContent = ''; // so the URL is not read as the title or the link
+  return Object.assign(document.createElement('img'), { src: safeUrl(url), alt: '' });
+}
+
+/**
+ * Splits an authored row into image, title, description and link.
+ * First text cell = title, next cells = description, a "#"/path/link cell = link.
+ * @param {Element} row Authored row
+ * @returns {{picture: Element|null, title: string, description: string, href: string}}
  */
 function readRow(row) {
-  const picture = row.querySelector('picture') || row.querySelector('img');
+  const picture = readImage(row);
   const anchor = row.querySelector('a[href]');
   let href = anchor ? anchor.getAttribute('href') : '';
 
@@ -67,6 +112,11 @@ function readRow(row) {
   };
 }
 
+/**
+ * Finds the banner closest to the centre of the scrolling row.
+ * @param {Element} list Scrolling list
+ * @returns {number} Index of the centred banner
+ */
 function centredIndex(list) {
   const centre = list.scrollLeft + list.clientWidth / 2;
   let best = 0;
@@ -81,6 +131,11 @@ function centredIndex(list) {
   return best;
 }
 
+/**
+ * Scrolls the row so one banner sits in the centre (no animation).
+ * @param {Element} list Scrolling list
+ * @param {number} index Banner to centre
+ */
 function centreCard(list, index) {
   const item = list.children[index];
   if (!item) return;
@@ -88,13 +143,14 @@ function centreCard(list, index) {
 }
 
 /**
- * Mobile scroll tracking: one dot per card (active = the centred card), and the cards get
- * is-active / is-prev / is-next so CSS can show the centred one full size with the others
- * tucked behind it. The dots are decorative: the cards themselves are reachable with Tab.
+ * Builds the mobile dots and keeps them, and the banner states
+ * (is-active / is-prev / is-next), in sync with the scroll position.
+ * @param {Element} list Scrolling list
+ * @returns {{dots: HTMLElement, update: Function}} Dots element and a refresh function
  */
 function createScrollDots(list) {
   const dots = el('div', 'vibe-cards-dots');
-  dots.setAttribute('aria-hidden', 'true');
+  dots.setAttribute('aria-hidden', 'true'); // decorative, banners are reachable with Tab
   dots.append(...[...list.children].map(() => el('span', 'vibe-cards-dot')));
   const update = () => {
     const active = centredIndex(list);
@@ -110,13 +166,17 @@ function createScrollDots(list) {
   return { dots, update };
 }
 
+/**
+ * Builds one clickable banner. Link "#" is clickable but does not redirect.
+ * @param {{picture: Element|null, title: string, description: string, href: string}} data
+ * @returns {HTMLLIElement}
+ */
 function buildCard({
   picture, title, description, href,
 }) {
   const li = el('li', 'vibe-cards-item');
   const card = el(href ? 'a' : 'div', 'vibe-cards-card');
   if (href) card.href = href;
-  // "#" = clickable placeholder for now: no redirect, no jump to the top of the page
   if (href === '#') card.addEventListener('click', (e) => e.preventDefault());
 
   const media = el('div', 'vibe-cards-image');
@@ -135,7 +195,7 @@ function buildCard({
   const footer = el('div', 'vibe-cards-footer');
   footer.append(el('p', 'vibe-cards-description', description));
   if (href) {
-    const arrow = el('span', 'vibe-cards-arrow');
+    const arrow = el('span', 'vibe-cards-arrow'); // decorative, the whole banner is the link
     arrow.setAttribute('aria-hidden', 'true');
     arrow.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     footer.append(arrow);
@@ -147,6 +207,10 @@ function buildCard({
   return li;
 }
 
+/**
+ * Block entry: builds the banners, adds the mobile dots and centres the middle banner.
+ * @param {Element} block The Vibe Cards block
+ */
 export default function decorate(block) {
   const list = el('ul', 'vibe-cards-list');
   [...block.children].forEach((row) => {
@@ -156,7 +220,6 @@ export default function decorate(block) {
   const { dots, update } = createScrollDots(list);
   block.replaceChildren(list, dots);
 
-  // mobile: start with the middle card (Dial-Up Drip) centred, as in Figma
   const middle = Math.floor((list.children.length - 1) / 2);
   const start = () => {
     if (MOBILE.matches) centreCard(list, middle);
