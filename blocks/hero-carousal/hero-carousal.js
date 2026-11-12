@@ -1,17 +1,15 @@
-import { createOptimizedPicture } from '../../scripts/aem.js';
+import { createOptimizedPicture, loadCSS } from '../../scripts/aem.js';
 
 const AUTOPLAY_INTERVAL = 5000; // ms, used when the block has the `autoplay` variant
+const CONTROLS_ENABLED = false; // false: arrows, dots (pills) and thumbnails are shown but non-functional
 const PAUSE_ON_HOVER = false; // set to true to pause autoplay while the mouse is over the banner
 const TITLE_MIN_FONT = 28; // px, the heading never shrinks below this
-const DEFAULT_CTA_LABEL = 'Shop now'; // used only if the CTA is authored as a bare URL / "#"
 
 const IMAGE_BREAKPOINTS = [{ media: '(min-width: 900px)', width: '2000' }, { width: '900' }];
 const THUMB_BREAKPOINTS = [{ width: '400' }];
 
 const ICON_PREV = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M19 12H5M11 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_NEXT = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-// same sparkle icon as the try-on-info block
-const ICON_SPARKLE = '<svg class="hero-carousel-sparkle" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M10 2l1.9 5.6L17.5 9.5l-5.6 1.9L10 17l-1.9-5.6L2.5 9.5l5.6-1.9zM18.5 13l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9zM18 2l.7 1.8 1.8.7-1.8.7L18 7l-.7-1.8-1.8-.7 1.8-.7z"></path></svg>';
 
 const CONTAINER_TAGS = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 const IMAGE_URL = /\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i;
@@ -85,22 +83,39 @@ function collectLines(root) {
   return lines;
 }
 
-function buildCta(label, href, redirect) {
-  let cta;
-  if (redirect) {
-    cta = document.createElement('a');
-    cta.href = href;
-  } else {
-    cta = document.createElement('button');
-    cta.type = 'button';
-    cta.dataset.href = href;
+/**
+ * A CTA authored with a real link navigates to it. A placeholder ("#" or empty) or the
+ * `no-redirect` variant gives a button that is clickable but goes nowhere.
+ */
+function isRealLink(raw, href) {
+  if (!raw || raw.trim() === '' || raw.trim().startsWith('#')) return false;
+  try {
+    const url = new URL(href, window.location.href);
+    const samePage = url.href.split('#')[0] === window.location.href.split('#')[0];
+    return !(samePage && (url.hash === '' || url.hash === '#'));
+  } catch (e) {
+    return false;
   }
-  cta.className = 'hero-carousel-cta';
-  cta.innerHTML = ICON_SPARKLE;
-  const text = document.createElement('span');
-  text.textContent = label;
-  cta.append(text);
-  return cta;
+}
+
+/**
+ * The CTA is the shared button of the try-on-info block (same look, sparkle and hover).
+ * - real link          -> normal <a> to that URL
+ * - placeholder / `no-redirect` -> clickable <button> that goes nowhere
+ * The shared button fires `try-on-info:open` for "#" links; that is stopped at the block
+ * (see decorate) so the hero never opens the try-on flow.
+ */
+function buildCta(label, href, redirect, tryOn) {
+  if (!tryOn) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'try-on-info hero-carousel-cta-wrap'; // `.try-on-info` scopes the shared styles
+  const cta = tryOn.createTryOnButton(
+    { label, href: redirect ? href : '#' },
+    'try-on-info-button hero-carousel-cta',
+  );
+  cta.dataset.href = href;
+  wrap.append(cta);
+  return wrap;
 }
 
 /** Heading lines: stacked on desktop, run together on one line on mobile (see CSS). */
@@ -132,7 +147,7 @@ function textWithBreaks(lines) {
  *  - Description : plain text line(s) AFTER the heading
  *  - CTA         : a hyperlink (link text = button label). A bare "#" or URL also works.
  */
-function buildContent(cell, redirect) {
+function buildContent(cell, noRedirect, tryOn, ctaLink) {
   const content = document.createElement('div');
   content.className = 'hero-carousel-content';
   if (!cell) return content;
@@ -140,13 +155,11 @@ function buildContent(cell, redirect) {
   const eyebrow = [];
   const title = [];
   const description = [];
-  let cta = null;
 
   collectLines(cell).forEach((line) => {
-    if (!cta && line.link) {
-      cta = { label: line.link.textContent.trim() || DEFAULT_CTA_LABEL, href: line.link.href };
-    } else if (!cta && URL_LIKE.test(line.text)) {
-      cta = { label: DEFAULT_CTA_LABEL, href: line.text };
+    if (line.link || URL_LIKE.test(line.text)) {
+      // links / bare URLs written in this block are ignored: the CTA is authored
+      // separately as a "Try On Info (button)" block
     } else if (line.heading) {
       title.push(line);
     } else if (title.length === 0) {
@@ -177,7 +190,12 @@ function buildContent(cell, redirect) {
     p.textContent = line.text;
     content.append(p);
   });
-  if (cta) content.append(buildCta(cta.label, cta.href, redirect));
+  // CTA only exists when a "Try On Info (button)" block has been authored on the page
+  if (ctaLink && tryOn) {
+    const redirect = !noRedirect && isRealLink(ctaLink.href, ctaLink.href);
+    const ctaEl = buildCta(ctaLink.label, ctaLink.href, redirect, tryOn);
+    if (ctaEl) content.append(ctaEl);
+  }
 
   return content;
 }
@@ -256,12 +274,31 @@ function fitTitles(slides) {
 
 /* ------------------------------------------------------------------- block */
 
-export default function decorate(block) {
+export default async function decorate(block) {
+  // shared CTA button (JS + CSS live in the try-on-info block)
+  let tryOn = null;
+  let ctaLink = null;
+  try {
+    const [mod] = await Promise.all([
+      import('../try-on-info/try-on-info.js'),
+      loadCSS(`${window.hlx.codeBasePath}/blocks/try-on-info/try-on-info.css`),
+    ]);
+    tryOn = mod;
+    // label + link come from the separately authored "Try On Info (button)" block;
+    // without it there is no CTA
+    ctaLink = mod.readTryOnLink(document.querySelector('.try-on-info.button'));
+    // the hero must never open the try-on flow: swallow the shared button's event here
+    block.addEventListener(mod.TRY_ON_EVENT, (e) => e.stopPropagation());
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('hero-carousel: could not load the shared CTA button', e);
+  }
+
   // makes the CSS independent of how the block is spelled in the document
   block.classList.add('hero-carousel');
   if (block.parentElement) block.parentElement.classList.add('hero-carousel-wrapper');
 
-  const redirect = block.classList.contains('cta-redirect');
+  const noRedirect = block.classList.contains('no-redirect');
   const rows = [...block.children];
   const total = rows.length;
 
@@ -288,7 +325,7 @@ export default function decorate(block) {
     imageWrap.className = 'hero-carousel-image';
     const picture = buildPicture(imageCell, IMAGE_BREAKPOINTS, i === 0);
     if (picture) imageWrap.append(picture);
-    slide.append(imageWrap, buildContent(contentCell, redirect));
+    slide.append(imageWrap, buildContent(contentCell, noRedirect, tryOn, ctaLink));
 
     const thumb = document.createElement('button');
     thumb.type = 'button';
@@ -396,15 +433,22 @@ export default function decorate(block) {
 
   if (total > 1) {
     block.append(thumbsEl, nav);
-    prev.addEventListener('click', () => go(current - 1));
-    next.addEventListener('click', () => go(current + 1));
-    thumbs.forEach((t, i) => t.addEventListener('click', () => go(i)));
-    dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
-
-    block.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') go(current - 1);
-      if (e.key === 'ArrowRight') go(current + 1);
-    });
+    if (CONTROLS_ENABLED) {
+      thumbs.forEach((t, i) => t.addEventListener('click', () => go(i)));
+      prev.addEventListener('click', () => go(current - 1));
+      next.addEventListener('click', () => go(current + 1));
+      dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
+      block.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') go(current - 1);
+        if (e.key === 'ArrowRight') go(current + 1);
+      });
+    } else {
+      // shown as per design, but not interactive
+      [prev, next, ...dots, ...thumbs].forEach((btn) => {
+        btn.setAttribute('aria-disabled', 'true');
+        btn.tabIndex = -1;
+      });
+    }
 
     let startX = null;
     slidesEl.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
@@ -438,14 +482,18 @@ export default function decorate(block) {
       block.dispatchEvent(new CustomEvent('hero-carousel:banner-click', { bubbles: true, detail: { index: i } }));
     });
 
-    // AC2: CTA is clickable. It navigates only with the `cta-redirect` variant.
+    // AC2: CTA is clickable. Navigates when authored with a real link (see isRealLink).
     const cta = slide.querySelector('.hero-carousel-cta');
     if (cta) {
       cta.addEventListener('click', (e) => {
         e.stopPropagation();
         block.dispatchEvent(new CustomEvent('hero-carousel:cta-click', {
           bubbles: true,
-          detail: { index: i, href: cta.dataset.href || cta.getAttribute('href'), redirect },
+          detail: {
+            index: i,
+            href: cta.dataset.href || cta.getAttribute('href'),
+            redirect: cta.tagName === 'A',
+          },
         }));
       });
     }
