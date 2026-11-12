@@ -20,8 +20,18 @@ import { loadFragment } from '../fragment/fragment.js';
  * Link the logo by linking it in DA, or (for a pasted URL) by editing the link target;
  * with no link it goes to "/".
  * Missing or broken logos degrade to a text wordmark, never a broken-image icon.
- * Other images in the lists (flame accent, avatar) accept the same inserted-image or
- * pasted path/URL forms; a failed one is dropped (flame) or replaced by a glyph (avatar).
+ * Other images in the lists (flame accent, tool icons, avatar) accept the same
+ * inserted-image or pasted path/URL forms; a failed one is dropped (flame) or replaced
+ * by a built-in glyph (tool icons, avatar).
+ *
+ * Tool list (third /nav section), by POSITION, because an image has no name:
+ *   1 search   2 wishlist   3 bag   4 account (avatar image)
+ *   5 (optional) an image-only item right after the avatar = its dropdown chevron
+ *     (a ":chevron-down:" icon in the avatar item works too; no image = built-in SVG)
+ * An authored :search: / :heart: / :bag: / :user: icon still wins over position.
+ * Every image's destination is authorable: link the image in DA (edit the link target,
+ * "#" included) and that exact URL is used, for the logo, the flame item, the tools and the
+ * avatar alike. Only an image with no authored destination falls back to TOOL_SLOTS[].href.
  *
  * Public hooks (replace the old try-on:* names):
  *   - CustomEvent `header:cart-count`  (detail: { count })
@@ -37,19 +47,31 @@ const ACCOUNT_HREF = '/account';
 const IMAGE_EXT = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
 // {ref}--{repo}--{org}.aem.page|live  ->  [, repo, org]
 const AEM_HOST = /^[\w-]+?--([\w-]+?)--([\w-]+)\.aem\.(?:page|live)$/i;
-// generic person glyph, drawn inline so the fallback needs no network request
-const USER_GLYPH = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg>';
+// the design underlines the first link (Men) until the visitor is on another section.
+// Visual only (no aria-current, which would claim the page is "Men"). Set false to disable.
+const DEFAULT_ACTIVE_FIRST = true;
+
+const svg = (inner, box = 24, stroke = 1.75) => `<svg viewBox="0 0 ${box} ${box}" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true">${inner}</svg>`;
+// inline glyphs: used when an authored tool image fails to load, and for the chevron,
+// so neither needs a network request or the /icons folder
+const GLYPHS = {
+  search: svg('<circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/>'),
+  wishlist: svg('<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>'),
+  cart: svg('<path d="M5.5 8.5h13l-1 11.5h-11z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>'),
+  account: svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>'),
+};
+const CHEVRON = svg('<path d="M1.5 3.75 6 8.25l4.5-4.5"/>', 12, 1.75);
 
 // must match the CSS breakpoint in header.css
 const isDesktop = window.matchMedia('(min-width: 900px)');
 
-// icon name (authored as :icon-name:) -> tool key (used for CSS modifier) + accessible label
-const TOOLS = {
-  search: { key: 'search', label: 'Search' },
-  bag: { key: 'cart', label: 'Bag' },
-  heart: { key: 'wishlist', label: 'Wishlist' },
-  user: { key: 'account', label: 'Account' },
-};
+// The four tools in authored order. `icons` are :icon-name: aliases that override position.
+const TOOL_SLOTS = [
+  { key: 'search', label: 'Search', href: '/search', icons: ['search'] },
+  { key: 'wishlist', label: 'Wishlist', href: '/wishlist', icons: ['heart', 'wishlist'] },
+  { key: 'cart', label: 'Bag', href: '/cart', icons: ['bag', 'cart'] },
+  { key: 'account', label: 'Account', href: ACCOUNT_HREF, icons: ['user', 'account'] },
+];
 
 // secondary tools that leave the bar on mobile and move into the opened menu
 const MOBILE_MENU_EXTRAS = [
@@ -136,22 +158,53 @@ function resolveImageUrl(value) {
 }
 
 /**
- * Runs `onFail` once if the image fails to load. Also catches a failure that
- * happened before this listener was attached (an already-broken cached image).
- * SVGs are excluded from the synchronous check because some browsers report
- * naturalWidth 0 for SVGs that carry no intrinsic size.
+ * The same URL on the other AEM origin (.aem.page <-> .aem.live), or null. A relative
+ * path such as /assets/images/x.png resolves against the page's own origin, and an asset
+ * that is published (.live) but not previewed (.page), or the reverse, only loads
+ * from one of them.
+ * @param {string} src absolute image URL
+ * @returns {string|null}
+ */
+function alternateOrigin(src) {
+  try {
+    const url = new URL(src);
+    const match = url.hostname.match(/^(.+)\.aem\.(page|live)$/i);
+    if (!match) return null;
+    url.hostname = `${match[1]}.aem.${match[2].toLowerCase() === 'page' ? 'live' : 'page'}`;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Runs `onFail` once if the image fails to load, after ONE retry on the other AEM
+ * origin (see alternateOrigin). Also catches a failure that happened before this
+ * listener was attached (an already-broken cached image). SVGs are excluded from the
+ * synchronous check because some browsers report naturalWidth 0 for SVGs that carry
+ * no intrinsic size. <picture> images are not retried (their srcset is managed by EDS).
  * @param {HTMLImageElement} img
  * @param {Function} onFail
  */
 function onImageError(img, onFail) {
   let handled = false;
+  let retried = false;
   const run = () => {
     if (handled) return;
     handled = true;
     onFail();
   };
-  img.addEventListener('error', run, { once: true });
-  if (img.complete && img.currentSrc && !img.naturalWidth && !/\.svg(?:[?#]|$)/i.test(img.currentSrc)) run();
+  const fail = () => {
+    const alt = !retried && !img.closest('picture') ? alternateOrigin(img.currentSrc || img.src) : null;
+    if (alt) {
+      retried = true;
+      img.src = alt;
+      return;
+    }
+    run();
+  };
+  img.addEventListener('error', fail);
+  if (img.complete && img.currentSrc && !img.naturalWidth && !/\.svg(?:[?#]|$)/i.test(img.currentSrc)) fail();
 }
 
 /**
@@ -170,13 +223,27 @@ function convertAuthoredImages(root) {
     return img;
   };
 
+  // DA turns a pasted URL or path into <a href=ref>ref</a>. The image reference is read
+  // from the link TEXT first (what the author typed; the pipeline may rewrite an href),
+  // then from the href. Anything else inside the link survives: an :icon: (the chevron)
+  // and plain words (a label such as "New Drops"). A real label link (e.g. "Men") or a
+  // label link that merely points at an image file is left alone.
+  const isToken = (word) => /^:[\w-]+:$/.test(word);
   root.querySelectorAll('ul a[href]').forEach((a) => {
-    if (a.querySelector('img, .icon')) return;
-    const url = resolveImageUrl(a.getAttribute('href'));
-    const text = a.textContent.trim();
-    if (url && (text === a.getAttribute('href').trim() || resolveImageUrl(text))) {
-      a.replaceWith(makeImg(url));
-    }
+    if (a.querySelector('img')) return;
+    const words = a.textContent.replace(/[\u200B-\u200D\uFEFF]/g, '').trim().split(/\s+/).filter(Boolean);
+    const refs = words.filter((word) => resolveImageUrl(word));
+    const rest = words.filter((word) => !resolveImageUrl(word) && !isToken(word));
+    const hrefUrl = resolveImageUrl(a.getAttribute('href'));
+    if (!refs.length && (!hrefUrl || rest.length)) return;
+    const url = refs.length ? resolveImageUrl(refs[0]) : hrefUrl;
+    const text = [...words.filter(isToken), ...rest].join(' ');
+    // the link's target is the author's destination, unless it is just the image file
+    // itself (what DA creates for a pasted path). It must survive the swap to <img>.
+    const target = (a.getAttribute('href') || '').trim();
+    const img = makeImg(url);
+    if (target && !resolveImageUrl(target) && !/^javascript:/i.test(target)) img.dataset.href = target;
+    a.replaceWith(img, ...a.querySelectorAll('.icon'), ...(text ? [` ${text}`] : []));
   });
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -274,8 +341,10 @@ function decorateMenu(menu) {
     if (!control) {
       // plain text (optionally with an inline image accent): make it a real button
       if (!li.textContent.trim() && !li.querySelector('img')) return;
-      control = document.createElement('button');
-      control.type = 'button';
+      const href = li.querySelector('img[data-href]')?.dataset.href;
+      control = document.createElement(href ? 'a' : 'button');
+      if (href) control.href = href;
+      else control.type = 'button';
       control.append(...li.childNodes);
       li.append(control);
     }
@@ -291,82 +360,128 @@ function decorateMenu(menu) {
 
   controls.forEach((control) => {
     control.addEventListener('click', () => {
-      controls.forEach((other) => other.removeAttribute('aria-current'));
+      controls.forEach((other) => {
+        other.removeAttribute('aria-current');
+        other.classList.remove('header__link--default');
+      });
       control.setAttribute('aria-current', control.tagName === 'A' ? 'page' : 'true');
     });
   });
 }
 
 /**
- * Labels icon-only tool links and tags each tool item with
- * `header__tool--<key>` so CSS can show/hide individual tools per breakpoint.
+ * Works out which tool a list item is. An authored :icon-name: wins; otherwise the
+ * item's position decides (search, wishlist, bag, account), because an uploaded or
+ * pasted image carries no name.
+ * @param {Element} li tool list item
+ * @param {number} index position in the tool list
+ * @returns {object|undefined} entry of TOOL_SLOTS
+ */
+function identifyTool(li, index) {
+  const name = [...li.querySelectorAll('span.icon')]
+    .map(getIconName)
+    .find((n) => n && n !== 'chevron-down');
+  return TOOL_SLOTS.find((slot) => slot.icons.includes(name)) || TOOL_SLOTS[index];
+}
+
+/**
+ * Appends the dropdown chevron to the account link. Uses the authored image when
+ * there is one (its box is larger than the visible glyph, see CSS), otherwise, or if
+ * the image fails, a built-in SVG.
+ * @param {Element} link the account link
+ * @param {Element|null} media authored picture/img/icon, or null for the SVG
+ */
+function addChevron(link, media = null) {
+  const chevron = document.createElement('span');
+  chevron.className = 'header__chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  const img = media && (media.matches('img') ? media : media.querySelector('img'));
+  if (img) {
+    img.classList.add('header__chevron-img');
+    img.setAttribute('alt', '');
+    img.setAttribute('loading', 'eager');
+    chevron.append(media);
+    onImageError(img, () => { chevron.innerHTML = CHEVRON; });
+  } else {
+    chevron.innerHTML = CHEVRON;
+  }
+  link.append(chevron);
+}
+
+/**
+ * Rebuilds the tools as ONE flat list of [link > image] items, whatever the author
+ * produced (images, :icons:, avatar + chevron, linked or not):
+ *  - tags each item header__tool--<key> so CSS can show/hide tools per breakpoint
+ *  - gives every icon-only control a link and an accessible name
+ *  - the account image becomes a round avatar; ":chevron-down:" becomes an inline chevron
+ *  - a failed image is replaced by a built-in glyph, never a broken-image icon
  * @param {Element} navTools The tools container
  */
 function decorateTools(navTools) {
   stripButtonStyles(navTools);
-  navTools.querySelectorAll('ul').forEach((ul) => ul.classList.add('header__tools-list'));
-  navTools.querySelectorAll('li').forEach((li) => {
-    li.classList.add('header__tool');
-    const link = li.querySelector('a');
-    if (link) link.classList.add('header__tool-link');
+  const list = document.createElement('ul');
+  list.className = 'header__tools-list';
 
-    const icon = li.querySelector('span.icon');
-    const name = icon ? getIconName(icon) : undefined;
-    const tool = name ? TOOLS[name] : undefined;
-    if (tool) li.classList.add(`header__tool--${tool.key}`);
+  let accountLink = null;
 
-    // icon-only link: it needs an accessible name
-    if (link && !link.textContent.trim() && !link.getAttribute('aria-label')) {
-      const label = tool?.label || name?.replace(/-/g, ' ');
-      if (label) link.setAttribute('aria-label', label);
+  [...navTools.querySelectorAll('li')].forEach((li, index) => {
+    const tool = identifyTool(li, index);
+    const authoredLink = li.querySelector('a[href]');
+    const hasChevron = !!li.querySelector('.icon-chevron-down') || /:chevron-down:/.test(li.textContent);
+    // the tool's own picture: the first image/icon that is not the chevron
+    const media = [...li.querySelectorAll('picture, img, span.icon')]
+      .find((el) => !el.closest('.icon-chevron-down'));
+
+    // an extra image-only item straight after the avatar is its dropdown chevron
+    if (!tool && accountLink && media && !accountLink.querySelector('.header__chevron')) {
+      addChevron(accountLink, media);
+      return;
     }
+
+    // destination: the author's link (a real <a>, or the target kept on the image),
+    // else the tool's default
+    const href = authoredLink?.getAttribute('href')
+      || li.querySelector('[data-href]')?.dataset.href
+      || tool?.href;
+    if (!href) return; // an unrecognised extra item with nowhere to go
+
+    const link = document.createElement('a');
+    link.className = 'header__tool-link';
+    link.href = href;
+    link.setAttribute('aria-label', authoredLink?.getAttribute('aria-label') || tool?.label || 'Link');
+
+    if (media) {
+      const img = media.matches('img') ? media : media.querySelector('img');
+      const isUpload = !media.matches('span.icon');
+      link.append(media);
+      if (img) {
+        img.classList.add('header__tool-img');
+        img.setAttribute('alt', '');
+        img.setAttribute('loading', 'eager'); // above the fold
+        img.setAttribute('decoding', 'async');
+        onImageError(img, () => {
+          if (!tool) return;
+          const fallback = document.createElement('span');
+          fallback.className = tool.key === 'account' && isUpload ? 'header__avatar-fallback' : 'header__tool-fallback';
+          fallback.setAttribute('aria-hidden', 'true');
+          fallback.innerHTML = GLYPHS[tool.key];
+          (media.closest('picture') || media).replaceWith(fallback);
+        });
+      }
+      if (tool?.key === 'account' && isUpload) link.classList.add('header__avatar');
+    }
+
+    if (hasChevron) addChevron(link);
+    if (tool?.key === 'account') accountLink = link;
+
+    const item = document.createElement('li');
+    item.className = `header__tool${tool ? ` header__tool--${tool.key}` : ''}`;
+    item.append(link);
+    list.append(item);
   });
-}
 
-/**
- * Lets an author swap a tool icon for a custom image, e.g. a signed-in user's
- * avatar. The avatar wins over the generic icon; a trailing chevron icon is kept.
- * Unlinked avatars are wrapped in a link to the account page.
- * @param {Element} navTools The tools container
- */
-function foldAvatarTools(navTools) {
-  navTools.querySelectorAll('li').forEach((li) => {
-    const img = [...li.querySelectorAll('img')].find((im) => !im.closest('span.icon'));
-    if (!img) return;
-    const media = img.closest('picture') || img;
-
-    // keep the chevron; drop any other icon (the generic account glyph)
-    const icons = [...li.querySelectorAll('span.icon')];
-    const chevron = icons.find((i) => i.classList.contains('icon-chevron-down'));
-    icons.forEach((i) => { if (i !== chevron) i.remove(); });
-
-    let link = li.querySelector('a');
-    if (!link) {
-      link = document.createElement('a');
-      link.href = ACCOUNT_HREF;
-    }
-    if (!link.getAttribute('aria-label')) link.setAttribute('aria-label', 'Account');
-    link.classList.add('header__tool-link', 'header__avatar');
-    li.classList.add('header__tool--account');
-    img.setAttribute('alt', img.getAttribute('alt') || '');
-
-    link.prepend(media);
-    // broken avatar -> neutral grey circle with a person glyph (matches the design)
-    onImageError(img, () => {
-      const fallback = document.createElement('span');
-      fallback.className = 'header__avatar-fallback';
-      fallback.setAttribute('aria-hidden', 'true');
-      fallback.innerHTML = USER_GLYPH;
-      media.replaceWith(fallback);
-    });
-    if (chevron) {
-      chevron.classList.add('header__chevron');
-      chevron.setAttribute('aria-hidden', 'true');
-      link.append(chevron);
-    }
-    li.textContent = '';
-    li.append(link);
-  });
+  navTools.textContent = '';
+  navTools.append(list);
 }
 
 /**
@@ -374,20 +489,13 @@ function foldAvatarTools(navTools) {
  * read from the `data-cart-count` attribute on the block or the `cart-count`
  * page metadata, and updated live via the `header:cart-count` event or
  * `window.hlx.header.setCartCount(n)`. The badge is hidden when the count is 0.
- * The count is exposed to assistive tech through the control's accessible name.
+ * The count is exposed to assistive tech through the link's accessible name.
  * @param {Element} navTools The tools container
  * @param {Element} block The block element (source of the authored count)
  */
 function decorateCartBadge(navTools, block) {
-  const bagIcon = [...navTools.querySelectorAll('span.icon')].find((icon) => {
-    const name = getIconName(icon);
-    return name && TOOLS[name]?.key === 'cart';
-  });
-  if (!bagIcon) return;
-
-  // the link if present (the author may have left the bag unlinked), else the icon's wrapper
-  const host = bagIcon.closest('a') || bagIcon.closest('p') || bagIcon.parentElement;
-  const isLink = host.tagName === 'A';
+  const host = navTools.querySelector('.header__tool--cart .header__tool-link');
+  if (!host) return;
   host.classList.add('header__cart');
 
   const badge = document.createElement('span');
@@ -395,20 +503,13 @@ function decorateCartBadge(navTools, block) {
   badge.setAttribute('aria-hidden', 'true');
   host.append(badge);
 
-  // aria-label is not allowed on a plain <p>, so unlinked bags get visually hidden text instead
-  const srText = document.createElement('span');
-  srText.className = 'header__sr-only';
-  if (!isLink) host.append(srText);
-
-  const baseLabel = (isLink && host.getAttribute('aria-label')) || 'Bag';
+  const baseLabel = host.getAttribute('aria-label') || 'Bag';
 
   const setCount = (value) => {
     const count = Math.max(0, Math.floor(Number(value) || 0));
     badge.textContent = count > 99 ? '99+' : String(count);
     badge.hidden = count === 0;
-    const label = count > 0 ? `${baseLabel}, ${count} item${count === 1 ? '' : 's'}` : baseLabel;
-    if (isLink) host.setAttribute('aria-label', label);
-    else srText.textContent = label;
+    host.setAttribute('aria-label', count > 0 ? `${baseLabel}, ${count} item${count === 1 ? '' : 's'}` : baseLabel);
   };
 
   setCount(block.dataset.cartCount ?? getMetadata('cart-count'));
@@ -586,6 +687,13 @@ export default async function decorate(block) {
   // image URLs pasted into the lists become real images BEFORE the lists are
   // classified (a URL's text would otherwise make an icon list look like a menu)
   convertAuthoredImages(nav);
+  // diagnostics: an image link that survived conversion would show up as raw text
+  nav.querySelectorAll('ul a[href]').forEach((a) => {
+    if (resolveImageUrl(a.getAttribute('href')) || resolveImageUrl(a.textContent.trim())) {
+      // eslint-disable-next-line no-console
+      console.warn('[header] image link was not converted:', a.outerHTML);
+    }
+  });
 
   // the first section is always the brand/logo; ensure it exists so the header
   // stays visible even when the fragment is missing or empty
@@ -607,7 +715,7 @@ export default async function decorate(block) {
   const isIconList = (ul) => {
     const items = [...ul.children];
     return items.length > 0
-      && items.every((li) => li.querySelector('.icon, img') && !li.textContent.trim());
+      && items.every((li) => li.querySelector('.icon, img') && !li.textContent.replace(/:[\w-]+:/g, '').trim());
   };
 
   nav.querySelectorAll('ul').forEach((ul) => {
@@ -631,9 +739,11 @@ export default async function decorate(block) {
   if (menu) {
     navSections.querySelectorAll(':scope > ul').forEach(decorateMenu);
     markCurrentLink(navSections);
+    if (DEFAULT_ACTIVE_FIRST && !navSections.querySelector('[aria-current]')) {
+      navSections.querySelector('.header__link')?.classList.add('header__link--default');
+    }
   }
   decorateTools(navTools);
-  foldAvatarTools(navTools);
   decorateCartBadge(navTools, block);
   // after decorateMenu so the repeated tool links are not treated as sections
   addMobileMenuExtras(navSections, navTools);

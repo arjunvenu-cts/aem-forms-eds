@@ -160,7 +160,7 @@
   line-height: 1.25; /* 20px */
 }
 
-/* ---------- newsletter form ---------- */
+/* ---------- newsletter control (visual only: a <div role="group">, not a <form>) ---------- */
 .footer .footer__form {
   display: flex;
   flex-direction: column;
@@ -203,7 +203,7 @@
   letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
-  cursor: pointer;
+  cursor: default; /* visual only: the button performs no action */
   transition: filter 0.15s ease;
 }
 
@@ -212,28 +212,12 @@
   filter: brightness(1.06);
 }
 
-/* subscribe status — accent acknowledgement, collapses when empty */
-.footer .footer__status {
-  margin: 10px 0 0;
-  color: var(--footer-accent);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.footer .footer__status:empty {
-  display: none;
-}
-
 .footer .footer__disclaimer {
   max-width: 500px;
   margin: 32px 0 0;
   color: var(--footer-disclaimer);
   font-size: 14px;
   line-height: 1.25; /* ~17.5px, matches the reference */
-}
-
-.footer .footer__status:not(:empty) + .footer__disclaimer {
-  margin-top: 16px;
 }
 
 /* ---------- social icons ---------- */
@@ -335,6 +319,13 @@
 
 .footer .footer__copyright {
   margin: 0;
+}
+
+/* keep the copyright on the right even when no legal links are authored */
+@media (width >= 600px) {
+  .footer .footer__copyright {
+    margin-left: auto;
+  }
 }
 
 .footer .footer__legal {

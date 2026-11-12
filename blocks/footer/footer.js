@@ -4,40 +4,75 @@ import { loadFragment } from '../fragment/fragment.js';
 /**
  * Footer block (brand footer).
  *
- * Content-driven: the author-editable parts (logo, headline, subtext, disclaimer,
- * social links, link columns, copyright, legal links) come from the footer
- * fragment (page metadata `footer`, default `/footer`). The fixed design chrome
- * (newsletter form) is built here. Every field falls back to DEFAULTS, so the
- * footer renders fully even if the fragment — or any part of it — is missing.
+ * Content-driven: every piece of text, every link and the logo come from the
+ * footer fragment (page metadata `footer`, default `/footer`) authored in DA Live.
+ * Nothing is defaulted in code: a field that is not authored renders nothing.
+ * The only strings in this file are the two hidden accessible names of the
+ * newsletter control and the nav landmarks (see UI below).
+ *
+ * Newsletter text is authored as two labelled lines in the first section:
+ *   Email placeholder: you@email.com
+ *   Button label: Subscribe
  *
  * Authoring is forgiving: a list can be a real bulleted list OR consecutive
  * lines typed with a leading "-" / "•" (links optional). Items without a real
  * URL render as plain text instead of dead "#" links.
  *
- * Logo (all authored in the footer fragment, no code change needed):
+ * Logo (authored in the footer fragment, no code change needed):
  *   1. an image inserted with the DA image picker / drag-and-drop  → <picture>
  *   2. a path or URL typed as text, or a link to an image, e.g.
  *        /assets/images/dripcheck-logo.png
  *        https://da.live/media#/{org}/{repo}/assets/images/dripcheck-logo.png
- *        https://main--{repo}--{org}.aem.page/assets/images/dripcheck-logo.png
- *   3. nothing / a broken path → the text wordmark (DEFAULTS.logo)
+ *   3. a short plain-text line before the headline → text wordmark
+ *   A broken image falls back to the authored wordmark, or to nothing.
+ *
+ * Markup is built exclusively with DOM APIs (no innerHTML), so authored text can
+ * never be interpreted as HTML.
+ *
+ * The newsletter control is visual only: it is not a <form>, has no handlers and
+ * performs no validation, submission or navigation.
  *
  * CSS contract: BEM, scoped to `.footer` (see footer.css).
- *
- * Integration hook: a valid newsletter submit dispatches a bubbling
- * `footer:subscribe` CustomEvent ({ detail: { email } }) on the block.
  */
 
-// inline brand glyphs (24×24), drawn with currentColor so hover restyles them
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Accessible names of the fixed newsletter control (not visible on screen).
+// The visible placeholder and button text are authored in the footer fragment.
+const UI = {
+  newsletterLabel: 'Newsletter signup',
+  emailLabel: 'Email address',
+};
+
+// brand glyphs (24×24) described as data and built with createElementNS;
+// drawn with currentColor so hover restyles them
 const ICONS = {
-  facebook:
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
-  instagram:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="2" y="2" width="20" height="20" rx="5.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="17.7" cy="6.3" r="1.2" fill="currentColor" stroke="none"/></svg>',
-  tiktok:
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
-  youtube:
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>',
+  facebook: {
+    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
+    shapes: [['path', { d: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' }]],
+  },
+  instagram: {
+    attrs: {
+      viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    },
+    shapes: [
+      ['rect', {
+        x: '2', y: '2', width: '20', height: '20', rx: '5.5',
+      }],
+      ['circle', { cx: '12', cy: '12', r: '4.6' }],
+      ['circle', {
+        cx: '17.7', cy: '6.3', r: '1.2', fill: 'currentColor', stroke: 'none',
+      }],
+    ],
+  },
+  tiktok: {
+    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
+    shapes: [['path', { d: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z' }]],
+  },
+  youtube: {
+    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
+    shapes: [['path', { d: 'M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z' }]],
+  },
 };
 
 // keywords used to recognise a social platform from an authored link
@@ -51,63 +86,17 @@ const SOCIAL_MATCH = [
 // a line typed as a list item: "- Item", "• Item", "* Item"
 const BULLET = /^\s*[-–—•*]\s*\S/;
 
+// authored newsletter labels, e.g. "Button label: Subscribe"
+const FIELD = /^(email placeholder|button label)\s*:\s*(.+)$/i;
+
 // image file types accepted for an authored logo path
 const IMAGE_EXT = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
 
-// design defaults — every field is overridable from the footer fragment
-const DEFAULTS = {
-  logo: 'Dripcheck', // text wordmark, also the fallback when the image is missing/broken
-  logoAlt: 'Dripcheck',
-  heading: ['Join The Drip Sync', 'And Get 25% Off'],
-  subtext: 'First dibs on fresh drops, members-only deals, and a little extra style, straight to your inbox.',
-  disclaimer: 'By signing up, you agree to receive marketing emails from Dripcheck. Unsubscribe anytime.',
-  social: [
-    { name: 'Facebook', href: '', icon: 'facebook' },
-    { name: 'Instagram', href: '', icon: 'instagram' },
-    { name: 'TikTok', href: '', icon: 'tiktok' },
-    { name: 'YouTube', href: '', icon: 'youtube' },
-  ],
-  columns: [
-    {
-      title: 'Shop',
-      links: [
-        ['New Drops', ''], ['Men', ''], ['Women', ''], ['Kids', ''],
-        ['Virtual Try On', ''], ['Sale', ''], ['Gift Cards', ''],
-      ],
-    },
-    {
-      title: 'Brand name',
-      links: [
-        ['Our Story', ''], ['Our Community', ''], ['Store Locator', ''],
-        ['Investor Relations', ''], ['Careers', ''], ['Sustainability', ''],
-      ],
-    },
-    {
-      title: 'Order support',
-      links: [
-        ['Contact Us', ''], ['Returns & Exchanges', ''], ['Track My Order', ''],
-        ['Shipping & Delivery', ''], ['Size Guide', ''], ['FAQ', ''],
-      ],
-    },
-  ],
-  copyright: `© ${new Date().getFullYear()} Dripcheck. All rights reserved`,
-  legal: [['Terms of service', ''], ['Privacy policy', '']],
-  // fixed chrome (not authored)
-  newsletterLabel: 'Newsletter signup',
-  emailLabel: 'Email address',
-  emailPlaceholder: 'you@email.com',
-  subscribeLabel: 'Subscribe',
-  subscribeSuccess: 'Thanks for subscribing!',
-};
-
 let instanceCount = 0;
 
-/** Escapes text for safe interpolation into markup strings. */
-function esc(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
+/* ------------------------------------------------------------------ */
+/* URL helpers                                                         */
+/* ------------------------------------------------------------------ */
 
 /**
  * Allows only http(s), mailto, tel, hash and relative URLs (blocks javascript:, data:).
@@ -123,15 +112,13 @@ function safeHref(href) {
   return value;
 }
 
-/** Adds rel for absolute links that leave the current origin. */
-function relAttr(href) {
+/** True for absolute http(s) links that leave the current origin. */
+function isExternal(href) {
   try {
     const url = new URL(href, window.location.href);
-    return /^https?:$/.test(url.protocol) && url.origin !== window.location.origin
-      ? ' rel="noopener noreferrer"'
-      : '';
+    return /^https?:$/.test(url.protocol) && url.origin !== window.location.origin;
   } catch {
-    return '';
+    return false;
   }
 }
 
@@ -198,6 +185,10 @@ function buildLogoImage(src, alt) {
   img.decoding = 'async';
   return img;
 }
+
+/* ------------------------------------------------------------------ */
+/* Fragment parsing (reads the DA Live authoring structure)            */
+/* ------------------------------------------------------------------ */
 
 /** Removes a leading list marker typed by the author. */
 function stripBullet(text) {
@@ -301,7 +292,7 @@ function toNodes(root) {
 /**
  * Reads the author-editable fields out of the footer fragment.
  * Classification is by element type (not position). Returns only the fields
- * it finds; the rest default.
+ * that were authored; everything else stays undefined and renders nothing.
  * @param {Element} root The loaded fragment
  * @returns {object} A partial of the content model
  */
@@ -335,6 +326,11 @@ function parseFragment(root) {
         out.logoSrc = node.src;
         if (node.alt) out.logoAlt = node.alt;
       }
+    } else if (FIELD.test(node.text)) {
+      // labelled newsletter text; checked before the wordmark rule (it is also ≤3 words)
+      const [, key, value] = node.text.match(FIELD);
+      if (key.toLowerCase() === 'email placeholder') out.emailPlaceholder = value.trim();
+      else out.subscribeLabel = value.trim();
     } else if (!out.logoImg && !out.logo && !headline && !columns.length
       && node.text.split(/\s+/).length <= 3) {
       // a short text line before any heading/column is the logo wordmark
@@ -394,36 +390,233 @@ function splitHeading(text) {
   return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
 }
 
-/** A real link when a URL exists ("#" counts), otherwise plain text. */
-function linkMarkup(cls, href, label) {
+/* ------------------------------------------------------------------ */
+/* DOM builders (no innerHTML)                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Creates an element with an optional class and text content.
+ * @param {string} tag Tag name
+ * @param {string} [className] A single class name
+ * @param {string} [text] Text content (always set as text, never parsed as HTML)
+ * @returns {HTMLElement}
+ */
+function create(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.classList.add(className);
+  if (text) node.textContent = text;
+  return node;
+}
+
+/** Builds a brand glyph as an inline SVG, or null when the platform is unknown. */
+function buildIcon(name) {
+  const def = ICONS[name];
+  if (!def) return null;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  Object.entries(def.attrs).forEach(([key, value]) => svg.setAttribute(key, value));
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  def.shapes.forEach(([tag, attrs]) => {
+    const shape = document.createElementNS(SVG_NS, tag);
+    Object.entries(attrs).forEach(([key, value]) => shape.setAttribute(key, value));
+    svg.append(shape);
+  });
+  return svg;
+}
+
+/** A real link when a safe URL exists ("#" counts), otherwise plain text. */
+function buildLink(className, href, label) {
   const url = safeHref(href);
-  if (!url) return `<span class="${cls}">${esc(label)}</span>`;
-  return `<a class="${cls}" href="${esc(url)}"${relAttr(url)}>${esc(label)}</a>`;
+  if (!url) return create('span', className, label);
+  const link = create('a', className, label);
+  link.setAttribute('href', url);
+  if (isExternal(url)) link.setAttribute('rel', 'noopener noreferrer');
+  return link;
 }
 
-/** Builds one link column. */
-function columnMarkup({ title, links }) {
-  const items = links.map(([label, href]) => `<li>${linkMarkup('footer__link', href, label)}</li>`).join('');
-  return `<div class="footer__column"><h3 class="footer__column-title">${esc(title)}</h3><ul class="footer__column-list">${items}</ul></div>`;
+/** Wraps a node in a <li>. */
+function listItem(child) {
+  const li = document.createElement('li');
+  li.append(child);
+  return li;
 }
 
-/** Builds the social icon row. */
-function socialMarkup(social) {
-  return social
-    .map(({ name, href, icon }) => {
-      const url = safeHref(href);
-      const glyph = ICONS[icon] || esc(name);
-      if (!url) {
-        return `<li><span class="footer__social-link" role="img" aria-label="${esc(name)}">${glyph}</span></li>`;
-      }
-      return `<li><a class="footer__social-link" href="${esc(url)}"${relAttr(url)} aria-label="${esc(name)}">${glyph}</a></li>`;
-    })
-    .join('');
+/**
+ * Builds the logo: authored image, else authored wordmark. Returns null when
+ * neither was authored. A broken image falls back to the wordmark, or is removed.
+ */
+function buildLogo(data) {
+  const media = data.logoImg
+    || (data.logoSrc ? buildLogoImage(data.logoSrc, data.logoAlt || '') : null);
+  if (!media && !data.logo) return null;
+
+  const logo = create('p', 'footer__logo');
+  if (!media) {
+    logo.textContent = data.logo;
+    return logo;
+  }
+
+  const img = media.matches('img') ? media : media.querySelector('img');
+  if (img) {
+    img.addEventListener('error', () => {
+      logo.classList.remove('footer__logo--image');
+      logo.textContent = data.logo || '';
+      if (!data.logo) logo.remove();
+    }, { once: true });
+  }
+  logo.classList.add('footer__logo--image');
+  logo.append(media);
+  return logo;
 }
 
-/** Builds the legal link list (rendered in authored order). */
-function legalMarkup(legal) {
-  return legal.map(([label, href]) => `<li>${linkMarkup('footer__legal-link', href, label)}</li>`).join('');
+/** Builds the headline, one span per visual line. */
+function buildHeading(heading) {
+  const lines = Array.isArray(heading) ? heading : splitHeading(heading);
+  const h2 = create('h2', 'footer__heading');
+  lines.forEach((line, i) => {
+    h2.append(create('span', 'footer__heading-line', line));
+    if (i < lines.length - 1) h2.append(' '); // keeps the text readable as one sentence
+  });
+  return h2;
+}
+
+/**
+ * Builds the newsletter control. Purely visual: it is intentionally NOT a <form>
+ * and the button is type="button", so nothing is validated, submitted or navigated.
+ */
+function buildNewsletter(uid, data, describedBy) {
+  const group = create('div', 'footer__form');
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', UI.newsletterLabel);
+
+  const label = create('label', 'footer__visually-hidden', UI.emailLabel);
+  label.setAttribute('for', `${uid}-email`);
+
+  const input = create('input', 'footer__input');
+  input.id = `${uid}-email`;
+  input.setAttribute('type', 'email');
+  input.setAttribute('name', 'email');
+  input.setAttribute('autocomplete', 'email');
+  if (data.emailPlaceholder) input.setAttribute('placeholder', data.emailPlaceholder);
+  if (describedBy) input.setAttribute('aria-describedby', describedBy);
+
+  group.append(label, input);
+
+  // an unlabelled button would have no accessible name, so it renders only when authored
+  if (data.subscribeLabel) {
+    const button = create('button', 'footer__button', data.subscribeLabel);
+    button.setAttribute('type', 'button');
+    group.append(button);
+  }
+  return group;
+}
+
+/** Builds the social icon row, or null when none were authored. */
+function buildSocial(social = []) {
+  if (!social.length) return null;
+  const list = create('ul', 'footer__social');
+  social.forEach(({ name, href, icon }) => {
+    const url = safeHref(href);
+    let item;
+    if (url) {
+      item = create('a', 'footer__social-link');
+      item.setAttribute('href', url);
+      item.setAttribute('aria-label', name);
+      if (isExternal(url)) item.setAttribute('rel', 'noopener noreferrer');
+    } else {
+      item = create('span', 'footer__social-link');
+      item.setAttribute('role', 'img');
+      item.setAttribute('aria-label', name);
+    }
+    const glyph = buildIcon(icon);
+    if (glyph) item.append(glyph);
+    list.append(listItem(item));
+  });
+  return list;
+}
+
+/** Builds the left-hand intro. Returns the element and the headline (for fitting). */
+function buildIntro(data, uid) {
+  const intro = create('div', 'footer__intro');
+
+  const logo = buildLogo(data);
+  if (logo) intro.append(logo);
+
+  const hasHeading = Array.isArray(data.heading) ? data.heading.length : !!data.heading;
+  const heading = hasHeading ? buildHeading(data.heading) : null;
+  if (heading) intro.append(heading);
+
+  if (data.subtext) intro.append(create('p', 'footer__subtext', data.subtext));
+
+  const disclaimerId = `${uid}-disclaimer`;
+  intro.append(buildNewsletter(uid, data, data.disclaimer ? disclaimerId : ''));
+
+  if (data.disclaimer) {
+    const disclaimer = create('p', 'footer__disclaimer', data.disclaimer);
+    disclaimer.id = disclaimerId;
+    intro.append(disclaimer);
+  }
+
+  const social = buildSocial(data.social);
+  if (social) intro.append(social);
+
+  return { intro, heading };
+}
+
+/** Builds the link columns, or null when none were authored. */
+function buildNav(columns = []) {
+  if (!columns.length) return null;
+  const nav = create('nav', 'footer__nav');
+  nav.setAttribute('aria-label', 'Footer');
+  columns.forEach(({ title, links }) => {
+    const column = create('div', 'footer__column');
+    column.append(create('h3', 'footer__column-title', title));
+    const list = create('ul', 'footer__column-list');
+    links.forEach(([label, href]) => list.append(listItem(buildLink('footer__link', href, label))));
+    column.append(list);
+    nav.append(column);
+  });
+  return nav;
+}
+
+/** Builds the bottom bar (legal links + copyright), or null when neither was authored. */
+function buildBottom({ legal = [], copyright }) {
+  if (!legal.length && !copyright) return null;
+  const bottom = create('div', 'footer__bottom');
+
+  if (legal.length) {
+    const nav = document.createElement('nav');
+    nav.setAttribute('aria-label', 'Legal');
+    const list = create('ul', 'footer__legal');
+    legal.forEach(([label, href]) => list.append(listItem(buildLink('footer__legal-link', href, label))));
+    nav.append(list);
+    bottom.append(nav);
+  }
+
+  if (copyright) bottom.append(create('p', 'footer__copyright', copyright));
+  return bottom;
+}
+
+/**
+ * The headline is authorable, so it must never overflow: keep each line on one
+ * row and scale the size down only when the active display font runs wider
+ * than the column (fallback fonts, long copy, narrow phones).
+ */
+function fitHeadingToWidth(heading) {
+  const fit = () => {
+    heading.style.removeProperty('--footer-heading-fit');
+    const available = heading.clientWidth;
+    const needed = Math.max(0, ...[...heading.children].map((line) => line.scrollWidth));
+    if (available && needed > available) {
+      heading.style.setProperty('--footer-heading-fit', (Math.floor((available / needed) * 1000) / 1000).toString());
+    }
+  };
+  fit();
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(heading);
+  if (document.fonts) {
+    document.fonts.ready.then(fit);
+    document.fonts.addEventListener('loadingdone', fit);
+  }
 }
 
 /**
@@ -433,112 +626,38 @@ function legalMarkup(legal) {
 export default async function decorate(block) {
   instanceCount += 1;
   const uid = `footer-${instanceCount}`;
-  const data = { ...DEFAULTS };
 
   // page-level override, else the shared /footer document
   const meta = getMetadata('footer');
   const path = meta ? new URL(meta, window.location).pathname : '/footer';
+
+  let fragment = null;
   try {
-    const fragment = await loadFragment(path);
-    if (fragment) Object.assign(data, parseFragment(fragment));
+    fragment = await loadFragment(path);
   } catch {
-    // fragment missing or unreadable — defaults carry the full design
+    fragment = null;
   }
 
-  const headingLines = Array.isArray(data.heading) ? data.heading : splitHeading(data.heading);
-  const headingHTML = headingLines
-    .map((line) => `<span class="footer__heading-line">${esc(line)}</span>`)
-    .join(' ');
-  const legal = Array.isArray(data.legal) && data.legal.length ? data.legal : DEFAULTS.legal;
-  const columns = Array.isArray(data.columns) && data.columns.length ? data.columns : DEFAULTS.columns;
-  const social = Array.isArray(data.social) && data.social.length ? data.social : DEFAULTS.social;
+  block.textContent = '';
+  if (!fragment) return; // nothing authored → nothing rendered
 
-  block.innerHTML = `
-    <div class="footer__inner">
-      <div class="footer__top">
-        <div class="footer__intro">
-          <p class="footer__logo">${esc(data.logo)}</p>
-          <h2 class="footer__heading">${headingHTML}</h2>
-          <p class="footer__subtext">${esc(data.subtext)}</p>
-          <form class="footer__form" aria-label="${esc(data.newsletterLabel)}">
-            <label class="footer__visually-hidden" for="${uid}-email">${esc(data.emailLabel)}</label>
-            <input class="footer__input" id="${uid}-email" type="email" name="email"
-              autocomplete="email" required placeholder="${esc(data.emailPlaceholder)}"
-              aria-describedby="${uid}-disclaimer" />
-            <button class="footer__button" type="submit">${esc(data.subscribeLabel)}</button>
-          </form>
-          <p class="footer__status" role="status" aria-live="polite"></p>
-          <p class="footer__disclaimer" id="${uid}-disclaimer">${esc(data.disclaimer)}</p>
-          <ul class="footer__social">${socialMarkup(social)}</ul>
-        </div>
-        <nav class="footer__nav" aria-label="Footer">
-          ${columns.map(columnMarkup).join('')}
-        </nav>
-      </div>
-      <div class="footer__bottom">
-        <nav aria-label="Legal">
-          <ul class="footer__legal">${legalMarkup(legal)}</ul>
-        </nav>
-        <p class="footer__copyright">${esc(data.copyright)}</p>
-      </div>
-    </div>`;
+  const data = parseFragment(fragment);
 
-  // authored logo: an uploaded <picture>, else a typed/linked image path.
-  // A missing or broken image falls back to the text wordmark.
-  const logoEl = block.querySelector('.footer__logo');
-  const logoMedia = data.logoImg
-    || (data.logoSrc ? buildLogoImage(data.logoSrc, data.logoAlt) : null);
-  if (logoMedia) {
-    const img = logoMedia.matches('img') ? logoMedia : logoMedia.querySelector('img');
-    const showWordmark = () => {
-      logoEl.classList.remove('footer__logo--image');
-      logoEl.textContent = data.logo;
-    };
-    if (img) {
-      if (!img.getAttribute('alt')) img.alt = data.logoAlt;
-      img.addEventListener('error', showWordmark, { once: true });
-    }
-    logoEl.textContent = '';
-    logoEl.classList.add('footer__logo--image');
-    logoEl.append(logoMedia);
-  }
+  const inner = create('div', 'footer__inner');
+  const top = create('div', 'footer__top');
 
-  // The headline is authorable, so it must never overflow: keep each line on one
-  // row and scale the size down only when the active display font runs wider
-  // than the column (fallback fonts, long copy, narrow phones).
-  const heading = block.querySelector('.footer__heading');
-  const fitHeading = () => {
-    heading.style.removeProperty('--footer-heading-fit');
-    const available = heading.clientWidth;
-    const needed = Math.max(0, ...[...heading.children].map((line) => line.scrollWidth));
-    if (available && needed > available) {
-      heading.style.setProperty('--footer-heading-fit', (Math.floor((available / needed) * 1000) / 1000).toString());
-    }
-  };
-  fitHeading();
-  if ('ResizeObserver' in window) new ResizeObserver(fitHeading).observe(heading);
-  if (document.fonts) {
-    document.fonts.ready.then(fitHeading);
-    document.fonts.addEventListener('loadingdone', fitHeading);
-  }
+  const { intro, heading } = buildIntro(data, uid);
+  top.append(intro);
 
-  // No newsletter backend is wired yet. The browser validates the email
-  // (required + type=email); a valid submit is announced via the aria-live
-  // status region and published as `footer:subscribe` for a future integration.
-  const form = block.querySelector('.footer__form');
-  const input = block.querySelector('.footer__input');
-  const status = block.querySelector('.footer__status');
+  const nav = buildNav(data.columns);
+  if (nav) top.append(nav);
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = input.value.trim();
-    block.dispatchEvent(new CustomEvent('footer:subscribe', { bubbles: true, detail: { email } }));
-    status.textContent = data.subscribeSuccess;
-    form.reset();
-  });
+  inner.append(top);
 
-  // clear a stale confirmation as soon as the user starts a new entry
-  input.addEventListener('input', () => {
-    if (status.textContent) status.textContent = '';
-  });
+  const bottom = buildBottom(data);
+  if (bottom) inner.append(bottom);
+
+  block.append(inner);
+
+  if (heading) fitHeadingToWidth(heading);
 }
