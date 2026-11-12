@@ -1,0 +1,372 @@
+/* full-bleed: undo the 1200px section/wrapper limit from styles.css */
+main .section > .hero-carousel-wrapper {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hero-carousel {
+  --hero-bg: #6c4de6;
+  --hero-accent: #c4f65c;
+  --hero-text: #fff;
+
+  /* Heading font: the design uses a very bold, tall, narrow display face (Druk-like).
+     Add the font in styles/fonts.css; until it loads, the fallbacks below are used. */
+  --hero-title-font: anton, 'Druk Condensed', 'Druk Cond', impact, haettenschweiler, var(--heading-font-family);
+  --hero-nav-size: 50px; /* arrow button size */
+  --hero-nav-bottom: 28px; /* distance of arrows / dots / thumbnails from the banner bottom */
+  --hero-nav-gap: 18px; /* gap between the CTA and the arrows (as in Figma) */
+
+  position: relative;
+  overflow: hidden;
+  background-color: var(--hero-bg);
+  color: var(--hero-text);
+  transition: background-color 0.4s ease;
+}
+
+.hero-carousel .hero-carousel-slides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* track can't grow wider than the banner */
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- slides (stacked, cross-fade) ---------- */
+.hero-carousel .hero-carousel-slide {
+  grid-area: 1 / 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+  cursor: pointer;
+}
+
+.hero-carousel .hero-carousel-slide.active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s ease;
+}
+
+.hero-carousel .hero-carousel-image {
+  aspect-ratio: 8 / 7;
+}
+
+.hero-carousel .hero-carousel-image picture,
+.hero-carousel .hero-carousel-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+/* ---------- content ---------- */
+.hero-carousel .hero-carousel-content {
+  min-width: 0;
+  padding: 20px 16px 16px;
+}
+
+.hero-carousel .hero-carousel-eyebrow {
+  margin: 0;
+  font-family: var(--body-font-family);
+  font-size: clamp(16px, 4.6vw, 24px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  word-spacing: 0.25em; /* the design has a wider gap between "AW 26-27" and "THANKSGIVING" */
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.hero-carousel .hero-carousel-title {
+  margin: 6px 0 14px;
+  font-family: var(--hero-title-font);
+  font-size: clamp(30px, 20vw, 110px); /* JS shrinks it until the line fits the width */
+  font-weight: 400; /* the display font has a single heavy weight */
+  line-height: 0.95;
+  text-transform: uppercase;
+  white-space: nowrap; /* only authored line breaks; JS shrinks the font if a line is too wide */
+}
+
+.hero-carousel .hero-carousel-description {
+  margin: 0 0 24px;
+  font-size: clamp(14px, 3.8vw, 20px);
+  line-height: 1.35;
+}
+
+.hero-carousel .hero-carousel-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%; /* full width on mobile */
+  height: 54px;
+  margin: 0;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--hero-accent);
+  color: #131313;
+  font: inherit;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hero-carousel .hero-carousel-sparkle {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  margin-right: 0.5em;
+}
+
+.hero-carousel a.hero-carousel-cta:hover,
+.hero-carousel button.hero-carousel-cta:hover {
+  background-color: #fff;
+  color: #131313;
+  text-decoration: none;
+}
+
+/* ---------- controls (mobile: thumbnails row, then [prev] dots [next]) ---------- */
+.hero-carousel .hero-carousel-nav {
+  position: relative;
+  z-index: 3; /* always above the slide text and image so the buttons stay clickable */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0 16px 24px;
+}
+
+.hero-carousel .hero-carousel-prev {
+  order: 1;
+}
+
+.hero-carousel .hero-carousel-dots {
+  order: 2;
+}
+
+.hero-carousel .hero-carousel-next {
+  order: 3;
+}
+
+.hero-carousel .hero-carousel-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hero-nav-size);
+  height: var(--hero-nav-size);
+  padding: 0;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.hero-carousel .hero-carousel-arrow:hover {
+  background-color: #fff;
+  color: var(--hero-bg);
+}
+
+.hero-carousel .hero-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 24px tap target, small visible dot */
+.hero-carousel .hero-carousel-dot {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.hero-carousel .hero-carousel-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: rgb(255 255 255 / 45%);
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.hero-carousel .hero-carousel-dot.active::before {
+  width: 32px;
+  background-color: var(--hero-accent);
+}
+
+.hero-carousel .hero-carousel-thumbs {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px 20px;
+}
+
+.hero-carousel .hero-carousel-thumb {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 16 / 10;
+  padding: 0;
+  border: 2px solid #fff;
+  background: var(--hero-bg);
+  overflow: hidden;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.hero-carousel .hero-carousel-thumb:hover,
+.hero-carousel .hero-carousel-thumb.active {
+  opacity: 1;
+}
+
+.hero-carousel .hero-carousel-thumb picture,
+.hero-carousel .hero-carousel-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+.hero-carousel .hero-carousel-title-line {
+  display: inline; /* mobile: "GRATEFUL FOR DRIP" on one line */
+}
+
+.hero-carousel button:focus-visible,
+.hero-carousel a:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.hero-carousel .hero-carousel-cta:focus-visible {
+  outline-color: #131313;
+  outline-offset: -6px;
+}
+
+/* ---------- desktop ---------- */
+@media (width >= 900px) {
+  .hero-carousel {
+    --hero-nav-bottom: clamp(32px, 5vw, 80px);
+  }
+
+  .hero-carousel .hero-carousel-title-line {
+    display: block;
+  }
+
+  .hero-carousel .hero-carousel-slide {
+    position: relative;
+    box-sizing: border-box;
+    flex-direction: row;
+    align-items: flex-end; /* text sits right above the arrows, like the design */
+
+    /* banner proportions from the design (949 x 547); grows if the text needs more room */
+    aspect-ratio: 949 / 547;
+    min-height: 480px;
+
+    /* arrows + gap are reserved below the text, so the CTA can never overlap them */
+    padding-top: 40px;
+    padding-bottom: calc(var(--hero-nav-bottom) + var(--hero-nav-size) + var(--hero-nav-gap));
+  }
+
+  .hero-carousel .hero-carousel-image {
+    position: absolute;
+    inset: 0;
+    aspect-ratio: auto;
+  }
+
+  .hero-carousel .hero-carousel-content {
+    position: relative;
+    width: min(42%, 620px);
+    padding: 0 0 0 4.5vw;
+  }
+
+  /* text scales with the banner width, so its height keeps the Figma proportions
+     (top gap ~13% of the banner, CTA 18px above the arrows) at every desktop width */
+  .hero-carousel .hero-carousel-eyebrow {
+    font-size: clamp(18px, 2.3vw, 40px);
+  }
+
+  .hero-carousel .hero-carousel-title {
+    margin: 0.5vw 0 1.3vw;
+    font-size: clamp(64px, 10.5vw, 190px);
+    line-height: 0.92;
+  }
+
+  .hero-carousel .hero-carousel-description {
+    max-width: 34vw;
+    margin-bottom: clamp(24px, 4.4vw, 72px);
+    font-size: clamp(14px, 1.35vw, 22px);
+    line-height: 1.5;
+  }
+
+  .hero-carousel .hero-carousel-cta {
+    display: inline-flex;
+    width: auto;
+    height: clamp(48px, 5vw, 76px);
+    min-width: clamp(160px, 19.7vw, 290px);
+    font-size: clamp(16px, 1.9vw, 28px);
+  }
+
+  .hero-carousel .hero-carousel-nav {
+    position: absolute;
+    left: 4.5vw;
+    bottom: var(--hero-nav-bottom);
+    display: flex;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .hero-carousel .hero-carousel-prev,
+  .hero-carousel .hero-carousel-dots,
+  .hero-carousel .hero-carousel-next {
+    order: 0;
+  }
+
+  .hero-carousel .hero-carousel-dots {
+    margin-left: 8px;
+  }
+
+  .hero-carousel .hero-carousel-thumbs {
+    position: absolute;
+    right: 4.5vw;
+    bottom: var(--hero-nav-bottom);
+    z-index: 3;
+    display: flex;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .hero-carousel .hero-carousel-thumb {
+    flex: none;
+    width: clamp(110px, 14.5vw, 210px);
+    border-width: 3px;
+  }
+
+  .hero-carousel .hero-carousel-thumb picture,
+  .hero-carousel .hero-carousel-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel .hero-carousel-slide,
+  .hero-carousel .hero-carousel-slide.active,
+  .hero-carousel .hero-carousel-dot::before {
+    transition: none;
+  }
+}
