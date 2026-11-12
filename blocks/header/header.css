@@ -301,7 +301,7 @@ header .header .header__chevron svg {
 }
 
 /* hover only: dimming on focus would weaken the focus indicator */
-header .header .header__tool-link:hover {
+header .header a.header__tool-link:hover {
   opacity: 0.6;
 }
 

@@ -31,7 +31,7 @@ import { loadFragment } from '../fragment/fragment.js';
  * An authored :search: / :heart: / :bag: / :user: icon still wins over position.
  * Every image's destination is authorable: link the image in DA (edit the link target,
  * "#" included) and that exact URL is used, for the logo, the flame item, the tools and the
- * avatar alike. Only an image with no authored destination falls back to TOOL_SLOTS[].href.
+ * avatar alike. A tool image with no authored link falls back to "#" (same page).
  *
  * Public hooks (replace the old try-on:* names):
  *   - CustomEvent `header:cart-count`  (detail: { count })
@@ -41,7 +41,6 @@ import { loadFragment } from '../fragment/fragment.js';
 const DEFAULT_NAV_PATH = '/nav';
 const NAV_ID = 'header-nav';
 const SECTIONS_ID = 'header-sections';
-const ACCOUNT_HREF = '/account';
 
 // extensions accepted when an image is authored as a path/URL (text or link)
 const IMAGE_EXT = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
@@ -67,10 +66,10 @@ const isDesktop = window.matchMedia('(min-width: 900px)');
 
 // The four tools in authored order. `icons` are :icon-name: aliases that override position.
 const TOOL_SLOTS = [
-  { key: 'search', label: 'Search', href: '/search', icons: ['search'] },
-  { key: 'wishlist', label: 'Wishlist', href: '/wishlist', icons: ['heart', 'wishlist'] },
-  { key: 'cart', label: 'Bag', href: '/cart', icons: ['bag', 'cart'] },
-  { key: 'account', label: 'Account', href: ACCOUNT_HREF, icons: ['user', 'account'] },
+  { key: 'search', label: 'Search', icons: ['search'] },
+  { key: 'wishlist', label: 'Wishlist', icons: ['heart', 'wishlist'] },
+  { key: 'cart', label: 'Bag', icons: ['bag', 'cart'] },
+  { key: 'account', label: 'Account', icons: ['user', 'account'] },
 ];
 
 // secondary tools that leave the bar on mobile and move into the opened menu
@@ -438,17 +437,23 @@ function decorateTools(navTools) {
       return;
     }
 
-    // destination: the author's link (a real <a>, or the target kept on the image),
-    // else the tool's default
-    const href = authoredLink?.getAttribute('href')
-      || li.querySelector('[data-href]')?.dataset.href
-      || tool?.href;
-    if (!href) return; // an unrecognised extra item with nowhere to go
+    // destination: ONLY what the author linked in DA (a real <a>, or the target kept on
+    // the image). No default URL: an image with no authored link is still rendered, as a
+    // plain (non-interactive) image.
+    const href = authoredLink?.getAttribute('href') || li.querySelector('[data-href]')?.dataset.href;
 
-    const link = document.createElement('a');
+    const link = document.createElement(href ? 'a' : 'span');
     link.className = 'header__tool-link';
-    link.href = href;
-    link.setAttribute('aria-label', authoredLink?.getAttribute('aria-label') || tool?.label || 'Link');
+    const label = authoredLink?.getAttribute('aria-label') || tool?.label;
+    if (href) {
+      link.href = href;
+      if (label) link.setAttribute('aria-label', label);
+    } else if (label) {
+      link.setAttribute('role', 'img'); // still named for assistive tech
+      link.setAttribute('aria-label', label);
+    } else {
+      link.setAttribute('aria-hidden', 'true');
+    }
 
     if (media) {
       const img = media.matches('img') ? media : media.querySelector('img');
@@ -568,19 +573,21 @@ function findAuthoredLogoUrl(root) {
 /**
  * The destination an author gave the logo, when the logo was authored as a link
  * (e.g. a pasted image URL whose link target was edited to "/home" or "#").
- * Links that point at the image itself are not a destination. Falls back to "/".
+ * Links that point at the image itself are not a destination. Returns "" when none was
+ * authored (no default: the logo is then shown without a link).
  * @param {Element} root the brand section
  * @returns {string}
  */
 function findAuthoredLogoHref(root) {
   const hrefs = [...root.querySelectorAll('a[href]')].map((a) => a.getAttribute('href').trim());
-  return hrefs.find((href) => href && !resolveImageUrl(href) && !/^javascript:/i.test(href)) || '/';
+  return hrefs.find((href) => href && !resolveImageUrl(href) && !/^javascript:/i.test(href)) || '';
 }
 
 /**
  * Builds the brand: an uploaded image, an authored path/URL, or (when there is
  * no usable image) a text wordmark. The result is always a single link to "/"
- * so the header never renders empty or with a broken-image icon.
+ * (or a plain element when no destination was authored) so the header never renders
+ * empty or with a broken-image icon.
  *   - image present      -> kept (picture/srcset from the EDS pipeline is preserved)
  *   - path/URL authored  -> resolved by resolveImageUrl and rendered as <img>
  *   - nothing / load error -> text wordmark (authored name > og:site_name > "Home")
@@ -597,7 +604,7 @@ function decorateBrand(navBrand) {
   const container = navBrand.querySelector('.default-content-wrapper') || navBrand;
 
   let img = navBrand.querySelector('img');
-  let homeHref = '/';
+  let homeHref = ''; // authored destination only; empty = not linked
 
   if (img) {
     // an author who pasted a DA URL into the image dialog: point it at the real asset
@@ -622,8 +629,8 @@ function decorateBrand(navBrand) {
       p.append(img);
     } else {
       // nothing usable authored: wordmark only
-      const link = document.createElement('a');
-      link.href = homeHref;
+      const link = document.createElement(homeHref ? 'a' : 'span');
+      if (homeHref) link.href = homeHref;
       link.className = 'header__brand-link';
       const label = document.createElement('span');
       label.className = 'header__brand-text';
@@ -644,13 +651,13 @@ function decorateBrand(navBrand) {
   if (!img.getAttribute('height')) img.setAttribute('height', '32');
   img.classList.add('header__logo');
 
-  // wrap in a link to "/" if not already linked; keep an authored link.
-  // Wrap the <picture> (not the bare <img>) so the markup stays valid.
+  // keep an authored link. With none, the logo is wrapped in a plain element, never in
+  // a made-up link. Wrap the <picture> (not the bare <img>) so the markup stays valid.
   let link = img.closest('a');
   if (!link) {
     const media = img.closest('picture') || img;
-    link = document.createElement('a');
-    link.href = homeHref;
+    link = document.createElement(homeHref ? 'a' : 'span');
+    if (homeHref) link.href = homeHref;
     media.replaceWith(link);
     link.append(media);
   }
