@@ -395,6 +395,13 @@
 
 main > .section:has(.products.collection) {
   padding-bottom: 24px;
+  background-color: #fff;
+}
+
+/* Finish the Fit / Your Feed sections: white like Figma (beats any block's section colour) */
+main > .section.products-container:has(.products.collection) {
+  padding-bottom: 24px;
+  background-color: #fff;
 }
 
 .products.collection {

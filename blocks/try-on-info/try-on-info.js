@@ -78,16 +78,25 @@ function place(block) {
   setTimeout(() => observer.disconnect(), WAIT_MS);
 }
  
+/**
+ * Builds the Try the look sparkle icon (Figma Icon/24/Spark).
+ * Big sparkle top-right + small sparkle bottom-left; a thin rounded stroke
+ * gives the soft tips of the Figma icon. Decorative (aria-hidden).
+ * @returns {SVGSVGElement}
+ */
 function sparkle() {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', 'try-on-info-sparkle');
-  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('viewBox', '-1 -1 26 26'); // room for the rounded tips
   svg.setAttribute('width', '22');
   svg.setAttribute('height', '22');
   svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('fill', 'currentColor');
-  path.setAttribute('d', 'M10 2l1.9 5.6L17.5 9.5l-5.6 1.9L10 17l-1.9-5.6L2.5 9.5l5.6-1.9zM18.5 13l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9zM18 2l.7 1.8 1.8.7-1.8.7L18 7l-.7-1.8-1.8-.7 1.8-.7z');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('d', 'M15.6 0.2C16.42 5.53 18.47 7.58 23.8 8.4C18.47 9.22 16.42 11.27 15.6 16.6C14.78 11.27 12.73 9.22 7.4 8.4C12.73 7.58 14.78 5.53 15.6 0.2ZM6.2 12.2C6.78 15.97 8.23 17.42 12 18C8.23 18.58 6.78 20.03 6.2 23.8C5.62 20.03 4.17 18.58 0.4 18C4.17 17.42 5.62 15.97 6.2 12.2Z');
   svg.append(path);
   return svg;
 }

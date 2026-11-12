@@ -89,9 +89,12 @@
   filter: brightness(0.92);
 }
 
+/* Figma Icon/24/Spark in the PDP Try On button: 28px */
 .try-on-info .try-on-info-sparkle {
   display: flex;
   flex: none;
+  width: 28px;
+  height: 28px;
 }
 
 @media (width >= 900px) {
