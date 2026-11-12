@@ -77,6 +77,7 @@ export default function decorate(block) {
     a.className = 'cta-link';
     a.href = href;
     a.textContent = label;
+    if (href === '#') a.addEventListener('click', (e) => e.preventDefault());
     if (/^https?:/.test(href) && new URL(href).origin !== window.location.origin) {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';

@@ -1,0 +1,287 @@
+/* Vibe Cards ("Pick Your Vibe") — mobile first, desktop from 900px */
+
+@font-face {
+  font-family: Anton;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../fonts/anton-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../../fonts/inter-latin.woff2') format('woff2');
+}
+
+/* Section: white background; heading + CTA stay in the normal column */
+main > .section.vibe-cards-container {
+  padding-bottom: 24px;
+  background-color: #fff;
+  overflow-x: clip;
+}
+
+/* Full-bleed: banners break out of the section padding */
+main > .section > .vibe-cards-wrapper {
+  width: 100vw;
+  max-width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  padding: 0;
+}
+
+.vibe-cards {
+  margin: 24px 0 0;
+  font-family: Inter, roboto, sans-serif;
+}
+
+/* Mobile row: 295px banners, no gap, centred banner with neighbours peeking */
+.vibe-cards .vibe-cards-list {
+  display: grid;
+  grid-auto-columns: min(295px, 80vw);
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0 calc((100% - min(295px, 80vw)) / 2);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.vibe-cards .vibe-cards-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile: side banners shrink towards the centre one (no gap, behind it) */
+.vibe-cards .vibe-cards-item {
+  position: relative;
+  min-width: 0;
+  scroll-snap-align: center;
+  transform: scale(0.88);
+  transition: transform 0.3s ease;
+}
+
+.vibe-cards .vibe-cards-item.is-prev {
+  transform-origin: right center;
+}
+
+.vibe-cards .vibe-cards-item.is-next {
+  transform-origin: left center;
+}
+
+/* Centred banner: full size (295 x 514), on top */
+.vibe-cards .vibe-cards-item.is-active {
+  z-index: 1;
+  transform: none;
+}
+
+/* Banner: black card, photo on top, text below */
+.vibe-cards .vibe-cards-card {
+  position: relative;
+  display: block;
+  aspect-ratio: 295 / 514;
+  background-color: #000;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Photo: top 72% of the banner (64% on desktop) */
+.vibe-cards .vibe-cards-image {
+  position: absolute;
+  inset: 0 0 auto;
+  display: block;
+  height: 72%;
+  overflow: hidden;
+}
+
+.vibe-cards .vibe-cards-image picture,
+.vibe-cards .vibe-cards-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.vibe-cards .vibe-cards-image img {
+  object-fit: cover;
+  object-position: center top;
+  transition: transform 0.4s ease;
+}
+
+/* Hover: slight zoom on the photo */
+.vibe-cards a.vibe-cards-card:hover .vibe-cards-image img {
+  transform: scale(1.04);
+}
+
+/* Text area: fade from photo into black; padding 24px, 7px title-text gap */
+.vibe-cards .vibe-cards-body {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 96px 24px 24px;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 80%) 40%, #000 100%);
+}
+
+/* Title: Anton caps; pre-line keeps authored line breaks */
+.vibe-cards .vibe-cards-title {
+  margin: 0;
+  font-family: Anton, 'Roboto Condensed', 'Arial Narrow', sans-serif;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  white-space: pre-line;
+}
+
+/* Footer: description left, arrow right */
+.vibe-cards .vibe-cards-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vibe-cards .vibe-cards-description {
+  max-width: 260px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.vibe-cards .vibe-cards-description:empty {
+  display: none;
+}
+
+/* Arrow: round white outlined button (fills white on hover / focus) */
+.vibe-cards .vibe-cards-arrow {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  margin-left: auto;
+  border: 1.5px solid currentcolor;
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.vibe-cards a.vibe-cards-card:hover .vibe-cards-arrow,
+.vibe-cards a.vibe-cards-card:focus-visible .vibe-cards-arrow {
+  background-color: #fff;
+  color: #000;
+}
+
+/* Keyboard focus (Tab only) */
+.vibe-cards a.vibe-cards-card:focus-visible {
+  outline: 2px solid #0e0e0e;
+  outline-offset: 2px;
+}
+
+/* Mobile dots: active = black pill, others = outlined circles */
+.vibe-cards .vibe-cards-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.vibe-cards .vibe-cards-dot {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #0e0e0e;
+  border-radius: 999px;
+  transition: width 0.2s, background-color 0.2s;
+}
+
+.vibe-cards .vibe-cards-dot.active {
+  width: 32px;
+  background-color: #0e0e0e;
+}
+
+/* Desktop (Figma 1441 frame) */
+@media (width >= 900px) {
+  main > .section.vibe-cards-container {
+    padding-bottom: 32px;
+  }
+
+  /* Banners keep the Figma size on wider screens */
+  .vibe-cards {
+    max-width: 1441px;
+    margin: 40px auto 0;
+  }
+
+  /* 3 banners in a row, 8px apart, 475 x 666 */
+  .vibe-cards .vibe-cards-list {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0;
+    overflow: visible;
+  }
+
+  /* All banners full size, no mobile stacking */
+  .vibe-cards .vibe-cards-item,
+  .vibe-cards .vibe-cards-item.is-active {
+    z-index: auto;
+    transform: none;
+  }
+
+  .vibe-cards .vibe-cards-card {
+    aspect-ratio: 475 / 666;
+  }
+
+  .vibe-cards .vibe-cards-image {
+    height: 64%;
+  }
+
+  .vibe-cards .vibe-cards-body {
+    gap: 24px;
+    padding: 200px 32px 32px;
+  }
+
+  .vibe-cards .vibe-cards-title {
+    font-size: 80px;
+  }
+
+  .vibe-cards .vibe-cards-description {
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .vibe-cards .vibe-cards-arrow {
+    width: 54px;
+    height: 54px;
+  }
+
+  /* No dots on desktop */
+  .vibe-cards .vibe-cards-dots {
+    display: none;
+  }
+}
+
+/* Reduced motion: no animations */
+@media (prefers-reduced-motion: reduce) {
+  .vibe-cards .vibe-cards-item,
+  .vibe-cards .vibe-cards-image img,
+  .vibe-cards .vibe-cards-arrow,
+  .vibe-cards .vibe-cards-dot {
+    transition: none;
+  }
+
+  .vibe-cards a.vibe-cards-card:hover .vibe-cards-image img {
+    transform: none;
+  }
+}
