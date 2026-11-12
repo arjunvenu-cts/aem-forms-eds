@@ -33,7 +33,8 @@ export default async function decorate(block) {
   const url = "#";
   if (url) {
     const guide = el('a', 'product-sizes-guide', labelIsUrl ? 'Size Guide' : text['size-guide']);
-    guide.href = url;
+    // commented out because the link is not required to work
+    // guide.href = url;
     block.append(guide);
   }
 
