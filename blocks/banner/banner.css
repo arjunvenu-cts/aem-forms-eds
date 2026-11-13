@@ -135,7 +135,7 @@
 
 /* No coupon authored: let the title grow a bit to fill the freed space. */
 .banner.no-coupon .banner-content .banner-title {
-  font-size: clamp(44px, 6.8vw, 112px);
+  font-size: clamp(44px, 8.5vw, 170px);
 }
 
 /* Browsers with cap-height trimming can sit at the tighter Figma spacing without overlap. */
@@ -162,7 +162,7 @@
 
 /* Body copy — Figma: Inter 400, 16px, line-height 130%, letter-spacing 0. */
 .banner .banner-content .banner-text {
-  max-width: 34em;
+  max-width: 30em;
   margin-top: 8px;
   font-family: 'inter', var(--body-font-family);
   font-size: clamp(14px, 1.2vw, 16px);

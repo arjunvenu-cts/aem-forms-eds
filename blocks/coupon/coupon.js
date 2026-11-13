@@ -1,22 +1,12 @@
-/*
- * Coupon block: a reusable "USE CODE : <code>" ticket.
- * Only the coupon code is authored (e.g. "DRIP50"); the label and styling come from code.
- *
- * Reusable like the try-on button: author it as its own block, and a host block (e.g. the
- * banner) can import `buildTicket` and place the ticket inside itself. Used on its own, the
- * default decorate renders the ticket in place.
- *
- * Authoring (single cell):
- *   | Coupon  |
- *   | DRIP50  |
- */
-
 const LABEL = 'USE CODE :';
 
-/* Builds the ticket (label + code) element; shared by the banner and the standalone block. */
+/* Builds the ticket with an inner content wrapper matching 271x44px dimensions */
 export function buildTicket(code) {
   const ticket = document.createElement('div');
   ticket.className = 'coupon-ticket';
+
+  const content = document.createElement('div');
+  content.className = 'coupon-content';
 
   const label = document.createElement('span');
   label.className = 'coupon-label';
@@ -26,7 +16,8 @@ export function buildTicket(code) {
   codeEl.className = 'coupon-code';
   codeEl.textContent = code;
 
-  ticket.append(label, codeEl);
+  content.append(label, codeEl);
+  ticket.append(content);
   return ticket;
 }
 
