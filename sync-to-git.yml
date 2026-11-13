@@ -17,8 +17,8 @@ steps:
   - bash: |
       set -euo pipefail
       git remote add target "https://${GITHUB_USER}:${GITHUB_PAT}@${GITHUB_REPO}"
-      git push target HEAD:refs/heads/main
+      git push target HEAD:refs/heads/main --force
       git push target --tags
-    displayName: Push to Git repo
+    displayName: Push to Git repos
     env:
       GITHUB_PAT: $(GITHUB_PAT)
