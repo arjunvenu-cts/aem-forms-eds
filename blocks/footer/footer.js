@@ -10,6 +10,10 @@ import { loadFragment } from '../fragment/fragment.js';
  * The only strings in this file are the two hidden accessible names of the
  * newsletter control and the nav landmarks (see UI below).
  *
+ * Social icons are authored images: a headingless list where every item is an icon,
+ * either an image inserted in DA or a typed image path, each linked to the profile URL.
+ * The link's accessible name is the image alt text, else derived from the URL host.
+ *
  * Newsletter text is authored as two labelled lines in the first section:
  *   Email placeholder: you@email.com
  *   Button label: Subscribe
@@ -35,53 +39,12 @@ import { loadFragment } from '../fragment/fragment.js';
  * CSS contract: BEM, scoped to `.footer` (see footer.css).
  */
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
 // Accessible names of the fixed newsletter control (not visible on screen).
 // The visible placeholder and button text are authored in the footer fragment.
 const UI = {
   newsletterLabel: 'Newsletter signup',
   emailLabel: 'Email address',
 };
-
-// brand glyphs (24×24) described as data and built with createElementNS;
-// drawn with currentColor so hover restyles them
-const ICONS = {
-  facebook: {
-    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
-    shapes: [['path', { d: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z' }]],
-  },
-  instagram: {
-    attrs: {
-      viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
-    },
-    shapes: [
-      ['rect', {
-        x: '2', y: '2', width: '20', height: '20', rx: '5.5',
-      }],
-      ['circle', { cx: '12', cy: '12', r: '4.6' }],
-      ['circle', {
-        cx: '17.7', cy: '6.3', r: '1.2', fill: 'currentColor', stroke: 'none',
-      }],
-    ],
-  },
-  tiktok: {
-    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
-    shapes: [['path', { d: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z' }]],
-  },
-  youtube: {
-    attrs: { viewBox: '0 0 24 24', fill: 'currentColor' },
-    shapes: [['path', { d: 'M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z' }]],
-  },
-};
-
-// keywords used to recognise a social platform from an authored link
-const SOCIAL_MATCH = [
-  ['facebook', 'facebook'],
-  ['instagram', 'instagram'],
-  ['tiktok', 'tiktok'],
-  ['youtube', 'youtube'],
-];
 
 // a line typed as a list item: "- Item", "• Item", "* Item"
 const BULLET = /^\s*[-–—•*]\s*\S/;
@@ -165,18 +128,19 @@ function logoRefOf({ text, href }) {
   return { src, alt: fromHref && !fromText ? text : '' };
 }
 
+// rendition widths for createOptimizedPicture
+const LOGO_BREAKPOINTS = [{ media: '(min-width: 600px)', width: '600' }, { width: '400' }];
+const ICON_BREAKPOINTS = [{ width: '96' }];
+
 /**
- * Builds the logo <picture>/<img> for an authored path. Same-origin raster images
+ * Builds a <picture>/<img> for an authored image path. Same-origin raster images
  * go through createOptimizedPicture (webp + sized variants); SVG/GIF/external stay plain.
  */
-function buildLogoImage(src, alt) {
+function buildImage(src, alt, breakpoints = LOGO_BREAKPOINTS) {
   const url = new URL(src, window.location.href);
   const optimizable = url.origin === window.location.origin && /\.(png|jpe?g|webp|avif)$/i.test(url.pathname);
   if (optimizable) {
-    return createOptimizedPicture(url.pathname + url.search, alt, false, [
-      { media: '(min-width: 600px)', width: '600' },
-      { width: '400' },
-    ]);
+    return createOptimizedPicture(url.pathname + url.search, alt, false, breakpoints);
   }
   const img = document.createElement('img');
   img.src = url.href;
@@ -228,14 +192,39 @@ function linesOf(el) {
   return lines;
 }
 
-/** Returns [label, href] pairs for every item of a real <ul>. */
+/**
+ * Builds a [label, href, media?] list item. `media` is present when the item is an icon:
+ *   - an image inserted in DA (picture/img, optionally linked), or
+ *   - a typed image path ("/assets/icons/x.svg"), optionally hyperlinked to the destination.
+ * @param {string} label Item text (may be empty for an image-only item)
+ * @param {string} href Authored link (the destination, or the image itself)
+ * @param {Element} [pic] An authored <picture>/<img>
+ */
+function withMedia(label, href, pic) {
+  if (pic) {
+    const img = pic.matches('img') ? pic : pic.querySelector('img');
+    return [label || (img && img.getAttribute('alt')) || '', href, { el: pic }];
+  }
+  const src = label.split(/\s+/).length === 1 ? resolveLogoSrc(label) : '';
+  if (src) {
+    // a link that points at the image itself is not a destination
+    return ['', resolveLogoSrc(href) ? '' : href, { src }];
+  }
+  return [label, href];
+}
+
+/** Returns [label, href, media?] items for every <li> of a real <ul>. */
 function listItems(ul) {
   return [...ul.querySelectorAll('li')]
     .map((li) => {
       const a = li.querySelector('a');
-      return [stripBullet(li.textContent.replace(/\s+/g, ' ')), a ? a.getAttribute('href') || '' : ''];
+      return withMedia(
+        stripBullet(li.textContent.replace(/\s+/g, ' ')),
+        a ? a.getAttribute('href') || '' : '',
+        li.querySelector('picture, img'),
+      );
     })
-    .filter(([label]) => label);
+    .filter(([label, , media]) => label || media);
 }
 
 /**
@@ -273,7 +262,7 @@ function toNodes(root) {
         if (run && runParent !== el.parentElement) closeRun(); // new section = new list
         run = run || [];
         runParent = el.parentElement;
-        lines.forEach((l) => run.push([stripBullet(l.text), l.href]));
+        lines.forEach((l) => run.push(withMedia(stripBullet(l.text), l.href)));
         return;
       }
       closeRun();
@@ -303,8 +292,8 @@ function parseFragment(root) {
   const looseLists = [];
   let headline;
 
-  // first picture/img anywhere is the logo
-  const logoImg = root.querySelector('picture') || root.querySelector('img');
+  // first picture/img outside a list is the logo (images inside lists are icons)
+  const logoImg = [...root.querySelectorAll('picture, img')].find((el) => !el.closest('li'));
   if (logoImg) out.logoImg = logoImg;
 
   const nodes = toNodes(root);
@@ -340,16 +329,15 @@ function parseFragment(root) {
     }
   }
 
-  // headingless lists are either social links or the legal row
+  // headingless lists: a list made only of icons is the social row, any other is the legal row
   const social = [];
   let legal;
   looseLists.forEach((items) => {
-    const matched = items.map(([label, href]) => {
-      const hit = SOCIAL_MATCH.find(([key]) => `${label} ${href}`.toLowerCase().includes(key));
-      return hit ? { name: label || hit[1], href, icon: hit[1] } : null;
-    });
-    if (matched.every(Boolean)) social.push(...matched);
-    else if (!legal) legal = items;
+    if (items.every(([, , media]) => media)) {
+      social.push(...items.map(([label, href, media]) => ({ label, href, media })));
+    } else if (!legal) {
+      legal = items;
+    }
   });
   if (social.length) out.social = social;
   if (legal) out.legal = legal;
@@ -408,22 +396,6 @@ function create(tag, className, text) {
   return node;
 }
 
-/** Builds a brand glyph as an inline SVG, or null when the platform is unknown. */
-function buildIcon(name) {
-  const def = ICONS[name];
-  if (!def) return null;
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  Object.entries(def.attrs).forEach(([key, value]) => svg.setAttribute(key, value));
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  def.shapes.forEach(([tag, attrs]) => {
-    const shape = document.createElementNS(SVG_NS, tag);
-    Object.entries(attrs).forEach(([key, value]) => shape.setAttribute(key, value));
-    svg.append(shape);
-  });
-  return svg;
-}
-
 /** A real link when a safe URL exists ("#" counts), otherwise plain text. */
 function buildLink(className, href, label) {
   const url = safeHref(href);
@@ -447,7 +419,7 @@ function listItem(child) {
  */
 function buildLogo(data) {
   const media = data.logoImg
-    || (data.logoSrc ? buildLogoImage(data.logoSrc, data.logoAlt || '') : null);
+    || (data.logoSrc ? buildImage(data.logoSrc, data.logoAlt || '') : null);
   if (!media && !data.logo) return null;
 
   const logo = create('p', 'footer__logo');
@@ -511,25 +483,35 @@ function buildNewsletter(uid, data, describedBy) {
   return group;
 }
 
-/** Builds the social icon row, or null when none were authored. */
+/** Accessible name from an external URL when none was authored ("facebook.com" → "Facebook"). */
+function nameFromUrl(url) {
+  if (!isExternal(url)) return '';
+  const base = new URL(url, window.location.href).hostname.replace(/^www\./, '').split('.')[0];
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+/** Builds the social icon row from authored images, or null when none were authored. */
 function buildSocial(social = []) {
   if (!social.length) return null;
   const list = create('ul', 'footer__social');
-  social.forEach(({ name, href, icon }) => {
+  social.forEach(({ label, href, media }) => {
     const url = safeHref(href);
+    const name = label || nameFromUrl(url);
+    const icon = media.el || buildImage(media.src, '', ICON_BREAKPOINTS);
+    const img = icon.matches('img') ? icon : icon.querySelector('img');
+
     let item;
     if (url) {
       item = create('a', 'footer__social-link');
       item.setAttribute('href', url);
-      item.setAttribute('aria-label', name);
+      if (name) item.setAttribute('aria-label', name); // the link carries the name
       if (isExternal(url)) item.setAttribute('rel', 'noopener noreferrer');
+      if (img) img.setAttribute('alt', '');
     } else {
       item = create('span', 'footer__social-link');
-      item.setAttribute('role', 'img');
-      item.setAttribute('aria-label', name);
+      if (img) img.setAttribute('alt', name); // no link: the image carries the name
     }
-    const glyph = buildIcon(icon);
-    if (glyph) item.append(glyph);
+    item.append(icon);
     list.append(listItem(item));
   });
   return list;
