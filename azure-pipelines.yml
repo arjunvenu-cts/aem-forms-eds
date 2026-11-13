@@ -1,19 +1,32 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-trigger:
-- main
-
-pool:
-  vmImage: ubuntu-latest
-
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+  - checkout: none
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  - task: DownloadSecureFile@1
+    name: appKey
+    inputs:
+      secureFile: 'ado-aap-github.2026-11-13.private-key.pem'
+
+  - script: |
+      set -e
+      b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+      now=$(date +%s)
+      header=$(printf '{"alg":"RS256","typ":"JWT"}' | b64)
+      payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' $((now-60)) $((now+540)) "$APP_ID" | b64)
+      sig=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$KEY_PATH" | b64)
+      jwt="$header.$payload.$sig"
+
+      token=$(curl -sf -X POST \
+        -H "Authorization: Bearer $jwt" -H "Accept: application/vnd.github+json" \
+        https://api.github.com/app/installations/$INSTALL_ID/access_tokens | jq -r .token)
+
+      git -c http.extraheader="AUTHORIZATION: bearer $SYSTEM_ACCESSTOKEN" \
+        clone --mirror "$(Build.Repository.Uri)" repo.git
+      cd repo.git
+      git push --prune "https://x-access-token:${token}@github.com/Cognizant-Moment-AAP/Accl3-dev1.git" \
+        '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'
+    displayName: Mirror to GitHub
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      APP_ID: $(GH_APP_ID)
+      INSTALL_ID: $(GH_INSTALLATION_ID)
+      KEY_PATH: $(appKey.secureFilePath)
