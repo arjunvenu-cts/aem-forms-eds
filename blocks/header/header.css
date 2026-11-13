@@ -1,273 +1,620 @@
-/* header and nav layout */
-header .nav-wrapper {
-  background-color: var(--background-color);
-  width: 100%;
-  z-index: 2;
-  position: fixed;
+/* Header block
+ *
+ * Naming: BEM, block = .header (class EDS puts on the block element).
+ * Every selector is prefixed with `header .header` so it outranks the global
+ * boilerplate rules (a:any-link, button, button:hover) without !important and
+ * cannot leak into other blocks.
+ *
+ * Breakpoints (keep in sync with `isDesktop` in header.js):
+ *   < 900px   mobile/tablet : [menu]       [logo]       [bag]
+ *   >= 900px  desktop       : [logo]  [Men Women Kids New Drops]  [search heart bag (avatar v)]
+ *
+ * Tool icons are authored IMAGES (tightly cropped artwork), so they are sized by
+ * --header-icon-size directly; the glyph fills the box.
+ */
+
+@font-face {
+  font-family: 'Header Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('Roboto'),
+    local('Roboto-Regular'),
+    url('../../fonts/roboto-regular.woff2') format('woff2');
 }
 
-header nav {
+@font-face {
+  font-family: 'Header Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local('Roboto Medium'),
+    local('Roboto-Medium'),
+    url('../../fonts/roboto-medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Header Roboto';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local('Roboto Bold'),
+    local('Roboto-Bold'),
+    url('../../fonts/roboto-bold.woff2') format('woff2');
+}
+
+header .header {
+  /* colors */
+  --header-text: #1b1b1b;
+  --header-bg: #fff;
+  --header-border: #e6e6e6;
+  --header-badge-bg: #1b1b1b;
+  --header-badge-text: #fff;
+  --header-avatar-bg: #e6e6e6; /* only the broken-image fallback uses this */
+
+  /* typography */
+  --header-font: 'Header Roboto', 'Roboto', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', arial, sans-serif;
+  --header-link-size: 14px;
+  --header-link-weight: 700;
+
+  /* sizing */
+  --header-bar-height: var(--nav-height, 64px); /* stay aligned with `header { height }` in styles.css */
+  --header-logo-height: 32px;
+  --header-logo-max-width: 180px;
+  --header-icon-size: 20px; /* VISIBLE glyph size of a tool icon (mobile bag) */
+  --header-icon-img-size: 36px; /* box of the authored PNG: larger, because the PNGs carry transparent padding (glyph ~55% of the box) */
+  --header-hit-size: 44px; /* touch target on mobile/tablet; desktop drops to 24px (WCAG 2.2 AA 2.5.8) */
+  --header-avatar-size: 42px; /* avatar PNG box (its disc fills ~83% of it) */
+  --header-chevron-size: 12px; /* visible chevron */
+  --header-chevron-img-size: 24px; /* authored chevron PNG box (padded) */
+  --header-badge-size: 16px;
+  --header-flame-size: 20px;
+  --header-menu-gap: 28px;
+  --header-gutter: 16px;
+  --header-max-width: 1920px;
+
+  display: block;
+
+  /* reserve the bar's space so the fixed mobile bar never overlaps content and
+     the page does not shift when the block decorates */
+  min-height: var(--header-bar-height);
+}
+
+/* ---------- wrapper + grid ---------- */
+header .header .header__wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  background-color: var(--header-bg);
+
+  /* a shadow instead of a border: draws the 1px rule without adding to the bar's height */
+  box-shadow: 0 1px 0 var(--header-border);
+}
+
+header .header .header__nav {
   box-sizing: border-box;
   display: grid;
-  grid-template:
-    'hamburger brand tools' var(--nav-height)
-    'sections sections sections' 1fr / auto 1fr auto;
+
+  /* mobile: menu left, logo centred on the viewport, bag right.
+     1fr | auto | 1fr keeps the logo centred however wide the sides are. */
+  grid-template: 'hamburger brand tools' var(--header-bar-height) / 1fr auto 1fr;
   align-items: center;
-  gap: 0 24px;
-  margin: auto;
-  max-width: 1248px;
-  height: var(--nav-height);
-  padding: 0 24px;
-  font-family: var(--body-font-family);
+  column-gap: 8px;
+  margin: 0 auto;
+  max-width: var(--header-max-width);
+  min-height: var(--header-bar-height);
+  padding: 0 var(--header-gutter);
+  color: var(--header-text);
+  font-family: var(--header-font);
 }
 
-header nav[aria-expanded='true'] {
-  grid-template:
-    'hamburger brand' var(--nav-height)
-    'sections sections' 1fr
-    'tools tools' var(--nav-height) / auto 1fr;
-  overflow-y: auto;
-  min-height: 100dvh;
-}
-
-@media (width >= 900px) {
-  header .nav-wrapper {
-    position: relative;
-  }
-
-  header nav {
-    display: flex;
-    justify-content: space-between;
-    gap: 0 32px;
-    max-width: 1264px;
-    padding: 0 32px;
-  }
-}
-
-header nav p {
+header .header .header__nav p {
   margin: 0;
   line-height: 1;
 }
 
-header nav a:any-link {
-  color: currentcolor;
+header .header a:any-link {
+  color: inherit;
+  text-decoration: none;
 }
 
-/* hamburger */
-header nav .nav-hamburger {
-  grid-area: hamburger;
-  height: 22px;
+/* visible keyboard focus for every interactive element (dark ring: 16:1 on white) */
+header .header a:focus-visible,
+header .header button:focus-visible {
+  outline: 2px solid var(--header-text);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------- brand ---------- */
+header .header .header__brand {
+  grid-area: brand;
   display: flex;
+  align-items: center;
+  justify-self: center;
+  min-width: 0;
+}
+
+header .header .header__brand-link {
+  display: inline-flex;
   align-items: center;
 }
 
-header nav .nav-hamburger button {
-  height: 22px;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  background-color: var(--background-color);
-  color: inherit;
-  overflow: initial;
-  text-overflow: initial;
-  white-space: initial;
+header .header .header__logo {
+  width: auto;
+  height: var(--header-logo-height);
+  max-width: min(100%, var(--header-logo-max-width));
+  object-fit: contain;
 }
 
-header nav .nav-hamburger-icon,
-header nav .nav-hamburger-icon::before,
-header nav .nav-hamburger-icon::after {
+/* text wordmark: shown when no logo is authored or the logo fails to load */
+header .header .header__brand-text {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--header-logo-height);
+  max-width: var(--header-logo-max-width);
+  overflow: hidden;
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- tools (right-hand icon links) ---------- */
+header .header .header__tools {
+  grid-area: tools;
+  justify-self: end;
+
+  /* the glyph, not the 44px touch box, sits on the design's right gutter */
+  margin-right: calc((var(--header-icon-size) - var(--header-hit-size)) / 2);
+}
+
+header .header .header__tools-list {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+header .header .header__tool {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+/* every icon control meets the hit size while the glyph stays icon-sized */
+header .header .header__tool-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--header-hit-size);
+  min-height: var(--header-hit-size);
+  line-height: 0;
+}
+
+/* built-in fallback glyph and :icon: images: exactly glyph-sized */
+header .header .header__tool-link .icon,
+header .header .header__tool-fallback {
+  display: block;
+  width: var(--header-icon-size);
+  height: var(--header-icon-size);
+}
+
+/* authored tool image: centred on the hit box and allowed to be larger than it, so
+   the padded PNG shows a glyph of --header-icon-size without changing the layout */
+header .header .header__tool-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  flex: none;
+  width: var(--header-icon-img-size);
+  max-width: none;
+  height: var(--header-icon-img-size);
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+header .header .header__tool-fallback svg,
+header .header .header__avatar-fallback svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* search, wishlist and account: desktop only. On mobile the bar keeps just the
+   bag; these links are offered inside the opened menu. */
+header .header .header__tool--search,
+header .header .header__tool--wishlist,
+header .header .header__tool--account {
+  display: none;
+}
+
+/* avatar link: round image + chevron, one control */
+header .header .header__avatar {
+  gap: 4px;
+  min-width: 0;
+}
+
+/* the avatar stays in the flow (it sets the link's width) */
+header .header .header__avatar .header__tool-img {
+  position: static;
+  width: var(--header-avatar-size);
+  height: var(--header-avatar-size);
+  transform: none;
+}
+
+/* shown in place of the authored avatar if it fails to load */
+header .header .header__avatar-fallback {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--header-avatar-size);
+  height: var(--header-avatar-size);
+  padding: 8px;
+  border-radius: 50%;
+  background-color: var(--header-avatar-bg);
+  color: var(--header-text);
+}
+
+header .header .header__chevron {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: var(--header-chevron-size);
+  height: var(--header-chevron-size);
+  color: var(--header-text);
+}
+
+/* authored chevron PNG: centred, larger than the 12px slot (see tool image above) */
+header .header .header__chevron-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: var(--header-chevron-img-size);
+  max-width: none;
+  height: var(--header-chevron-img-size);
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+header .header .header__chevron svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* hover only: dimming on focus would weaken the focus indicator */
+header .header a.header__tool-link:hover {
+  opacity: 0.6;
+}
+
+/* bag count badge: dark bubble centred on the bag glyph's top-right corner.
+   Offsets are measured from the link's centre so the bubble tracks the glyph,
+   not the larger touch box around it. */
+header .header .header__badge {
+  position: absolute;
+  top: calc(50% - (var(--header-icon-size) / 2) - (var(--header-badge-size) / 2));
+  right: calc(50% - (var(--header-icon-size) / 2) - (var(--header-badge-size) / 2));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--header-badge-size);
+  height: var(--header-badge-size);
+  padding: 0 4px;
+  border-radius: 999px;
+  background-color: var(--header-badge-bg);
+  color: var(--header-badge-text);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+}
+
+header .header .header__badge[hidden] {
+  display: none;
+}
+
+/* ---------- sections (centre nav links) ---------- */
+header .header .header__sections {
+  grid-area: sections;
+  display: none;
+  color: var(--header-text);
+}
+
+header .header .header__menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+header .header .header__item {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* link or text-button: identical look. Resets the global button styling. */
+header .header .header__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px; /* flame accent -> label */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--header-link-size);
+  font-weight: var(--header-link-weight);
+  line-height: 1.4;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  cursor: pointer;
+}
+
+header .header .header__item picture {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+/* inline accent image (the flame before "New Drops") */
+header .header .header__item img {
+  display: block;
+  width: auto;
+  height: var(--header-flame-size);
+  object-fit: contain;
+}
+
+/* active underline: 2px bar the width of the label, 10px under it. Not colour
+   alone, so it also satisfies WCAG 1.4.1 (use of colour). */
+header .header .header__link::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 2px;
+  background: currentcolor;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+header .header .header__link:hover::after,
+header .header .header__link[aria-current]::after,
+header .header .header__link--default::after {
+  transform: scaleX(1);
+}
+
+/* search / wishlist / account links that only exist inside the mobile menu */
+header .header .header__menu--extras {
+  display: none;
+}
+
+/* ---------- hamburger (mobile / tablet only) ---------- */
+header .header .header__hamburger {
+  grid-area: hamburger;
+  display: flex;
+  align-items: center;
+  justify-self: start;
+
+  /* the three bars, not the 44px touch box, sit on the design's left gutter */
+  margin-left: calc((20px - var(--header-hit-size)) / 2);
+}
+
+header .header .header__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--header-hit-size);
+  height: var(--header-hit-size);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+  cursor: pointer;
+}
+
+header .header .header__toggle-icon,
+header .header .header__toggle-icon::before,
+header .header .header__toggle-icon::after {
   box-sizing: border-box;
   display: block;
   position: relative;
   width: 20px;
-}
-
-header nav .nav-hamburger-icon::before,
-header nav .nav-hamburger-icon::after {
-  content: '';
-  position: absolute;
-  background: currentcolor;
-}
-
-header nav[aria-expanded='false'] .nav-hamburger-icon,
-header nav[aria-expanded='false'] .nav-hamburger-icon::before,
-header nav[aria-expanded='false'] .nav-hamburger-icon::after {
   height: 2px;
   border-radius: 2px;
   background: currentcolor;
 }
 
-header nav[aria-expanded='false'] .nav-hamburger-icon::before {
+header .header .header__toggle-icon::before,
+header .header .header__toggle-icon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+header .header .header__toggle-icon::before {
   top: -6px;
 }
 
-header nav[aria-expanded='false'] .nav-hamburger-icon::after {
+header .header .header__toggle-icon::after {
   top: 6px;
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon {
-  height: 22px;
+header .header .header__nav--open .header__toggle-icon {
+  background: transparent;
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon::before,
-header nav[aria-expanded='true'] .nav-hamburger-icon::after {
-  top: 3px;
-  left: 1px;
+header .header .header__nav--open .header__toggle-icon::before {
+  top: 0;
   transform: rotate(45deg);
-  transform-origin: 2px 1px;
-  width: 24px;
-  height: 2px;
-  border-radius: 2px;
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon::after {
-  top: unset;
-  bottom: 3px;
+header .header .header__nav--open .header__toggle-icon::after {
+  top: 0;
   transform: rotate(-45deg);
 }
 
-@media (width >= 900px) {
-  header nav .nav-hamburger {
+/* ---------- mobile / tablet: open menu ---------- */
+@media (max-width: 899px) {
+  header .header .header__nav--open .header__sections {
+    display: block;
+    position: absolute;
+    top: var(--header-bar-height);
+    left: 0;
+    box-sizing: border-box;
+    width: 100%;
+    max-height: calc(100vh - var(--header-bar-height));
+    max-height: calc(100dvh - var(--header-bar-height));
+    padding: 8px var(--header-gutter) 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--header-bg);
+    box-shadow: 0 1px 0 var(--header-border);
+  }
+
+  header .header .header__nav--open .header__menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* the whole 44px row is the touch target, not just the text */
+  header .header .header__nav--open .header__item {
+    min-height: 44px;
+  }
+
+  header .header .header__nav--open .header__link {
+    flex: 1 1 auto;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* full-width rows: the bar underline would span the row, so use a text underline */
+  header .header .header__link::after {
     display: none;
-    visibility: hidden;
+  }
+
+  header .header .header__link:hover,
+  header .header .header__link[aria-current] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+  }
+
+  /* secondary links (search / wishlist / account) under a divider */
+  header .header .header__nav--open .header__menu--extras {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--header-border);
   }
 }
 
-/* brand */
-header .nav-brand {
-  grid-area: brand;
-  flex-basis: 128px;
-  font-size: var(--heading-font-size-s);
-  font-weight: 700;
-  line-height: 1;
+/* ---------- tablet ---------- */
+@media (min-width: 600px) {
+  header .header {
+    --header-gutter: 24px;
+  }
 }
 
-header nav .nav-brand img {
-  width: 128px;
-  height: auto;
-}
+/* ---------- desktop ---------- */
+@media (min-width: 900px) {
+  header .header {
+    /* the design's side margin is ~10% of the viewport on each side */
+    --header-gutter: clamp(24px, 10.25vw, 240px);
+    --header-hit-size: 24px;
+    --header-icon-size: 18px;
+    --header-icon-img-size: 32px;
+  }
 
-/* sections */
-header nav .nav-sections {
-  grid-area: sections;
-  flex: 1 1 auto;
-  display: none;
-  visibility: hidden;
-}
+  header .header .header__wrapper {
+    position: relative;
+  }
 
-header nav[aria-expanded='true'] .nav-sections {
-  display: block;
-  visibility: visible;
-  align-self: start;
-}
+  /* 1fr | auto | 1fr keeps the links centred on the viewport regardless of how
+     wide the logo and the tools are */
+  header .header .header__nav {
+    grid-template: 'brand sections tools' var(--header-bar-height) / 1fr auto 1fr;
+    column-gap: 24px;
+  }
 
-header nav .nav-sections ul {
-  list-style: none;
-  padding-left: 0;
-  font-size: var(--body-font-size-s);
-}
+  header .header .header__brand {
+    justify-self: start;
+  }
 
-header nav .nav-sections ul > li {
-  font-weight: 500;
-}
+  header .header .header__hamburger {
+    display: none;
+  }
 
-header nav .nav-sections .nav-drop > button {
-  all: unset;
-  display: inline-block;
-  position: relative;
-  padding-right: 16px;
-  cursor: pointer;
-}
-
-header nav .nav-sections .nav-drop > button::after {
-  content: '';
-  position: absolute;
-  top: 0.5em;
-  right: 2px;
-  transform: rotate(135deg);
-  width: 6px;
-  height: 6px;
-  border: 2px solid currentcolor;
-  border-radius: 0 1px 0 0;
-  border-width: 2px 2px 0 0;
-}
-
-header nav .nav-sections .nav-drop > button[aria-expanded='true']::after {
-  top: unset;
-  bottom: 0.5em;
-  transform: rotate(315deg);
-}
-
-header nav .nav-sections .nav-drop > button:focus-visible {
-  outline: 2px solid currentcolor;
-  outline-offset: 2px;
-}
-
-header nav .nav-sections ul > li > ul {
-  margin-top: 0;
-}
-
-header nav .nav-sections ul > li > ul > li {
-  font-weight: 400;
-}
-
-header nav .nav-sections .nav-drop > button[aria-expanded='false'] + ul {
-  display: none;
-}
-
-@media (width >= 900px) {
-  header nav .nav-sections {
+  header .header .header__sections {
     display: block;
-    visibility: visible;
+    justify-self: center;
+  }
+
+  header .header .header__menu {
+    display: flex;
+    align-items: center;
+    gap: var(--header-menu-gap);
     white-space: nowrap;
   }
 
-  header nav .nav-sections ul {
-    display: flex;
-    gap: 24px;
-    margin: 0;
-  }
-
-  header nav .nav-sections .default-content-wrapper > ul > li {
-    flex: 0 1 auto;
-    position: relative;
-  }
-
-  header nav .nav-sections .default-content-wrapper > ul > li > ul {
+  header .header .header__menu--extras {
     display: none;
-    position: relative;
   }
 
-  header nav .nav-sections .default-content-wrapper > ul > li > button[aria-expanded='true'] + ul {
-    display: block;
-    position: absolute;
-    left: -24px;
-    width: 200px;
-    top: 150%;
-    padding: 16px;
-    background-color: var(--light-color);
-    white-space: initial;
+  header .header .header__tools {
+    margin-right: 0;
   }
 
-  header nav .nav-sections .default-content-wrapper > ul > li > ul::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    left: 16px;
-    width: 0;
-    height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 8px solid var(--light-color);
+  header .header .header__tools-list {
+    gap: 8px;
   }
 
-  header nav .nav-sections .default-content-wrapper > ul > li > ul > li {
-    padding: 8px 0;
+  header .header .header__tool--search,
+  header .header .header__tool--wishlist {
+    display: flex;
+  }
+
+  header .header .header__tool--account {
+    display: flex;
+    margin-left: 6px;
   }
 }
 
-/* tools */
-header nav .nav-tools {
-  grid-area: tools;
+@media (prefers-reduced-motion: no-preference) {
+  header .header .header__link::after {
+    transition: transform 0.15s ease;
+  }
+
+  header .header .header__tool-link {
+    transition: opacity 0.15s ease;
+  }
 }
