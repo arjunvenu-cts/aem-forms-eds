@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - main          # the branch your PRs merge into
+      - main
 pr: none
 
 pool:
@@ -12,12 +12,13 @@ variables:
 
 steps:
   - checkout: self
-    fetchDepth: 0     # full history, required for pushing
+    fetchDepth: 0
 
   - bash: |
-      git remote add target "https://arjunvenu-cts:REMOVED_SECRET@aem-forms-eds"
+      set -euo pipefail
+      git remote add target "https://${GITHUB_USER}:${GITHUB_PAT}@${GITHUB_REPO}"
       git push target HEAD:refs/heads/main
       git push target --tags
     displayName: Push to Git repo
     env:
-      GITHUB_PAT: REMOVED_SECRET
+      GITHUB_PAT: $(GITHUB_PAT)
