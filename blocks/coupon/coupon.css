@@ -1,0 +1,103 @@
+/* Coupon block: purple "USE CODE : <code>" ticket with 4 semicircular notches
+   down BOTH the left and right edges.
+   Outer size: 331px x 67px | Inner content: 44px tall, full width with 10px side padding. */
+.coupon {
+  --coupon-bg: #9879DF; /* violet ticket */
+  --coupon-code-bg: #725BA7; /* darker violet behind the authored code */
+  --coupon-ink: #fff;
+
+  /* Colour that shows through each notch. Must match the banner background. */
+  --coupon-notch-color: var(--banner-bg, #f5ef4a);
+
+  display: inline-block;
+}
+
+.coupon.coupon-empty {
+  display: none;
+}
+
+.coupon .coupon-ticket {
+  --coupon-notch-r: 6px;       /* Radius of the semicircle bite */
+  --coupon-notch-pitch: 16.75px; /* 67px height / 4 = exactly 4 tight notches per edge */
+
+  /* Exact outer dimensions requested */
+  width: 331px;
+  height: 67px;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centers the inner content container */
+  position: relative;
+
+  background: var(--coupon-bg);
+  color: var(--coupon-ink);
+}
+
+/* Inner text container: full-width, 44px tall, centred with 7px gap */
+.coupon .coupon-content {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  position: relative;
+  z-index: 2;
+}
+
+/* Each strip is the full bite diameter wide and centred on the edge */
+.coupon .coupon-ticket::before,
+.coupon .coupon-ticket::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--coupon-notch-r) * 2);
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle at center,
+    var(--coupon-notch-color) calc(var(--coupon-notch-r) - 0.5px),
+    transparent calc(var(--coupon-notch-r) + 0.5px)
+  );
+  background-size: 100% var(--coupon-notch-pitch);
+  background-repeat: repeat-y;
+  background-position: center top;
+  z-index: 1;
+}
+
+/* Left edge: shift the strip left by half its width so the circle centre sits
+   on the ticket's left border. */
+.coupon .coupon-ticket::before {
+  left: calc(var(--coupon-notch-r) * -1);
+  margin-left: 0;
+}
+
+/* Right edge: mirrored. */
+.coupon .coupon-ticket::after {
+  right: calc(var(--coupon-notch-r) * -1);
+}
+
+/* "USE CODE :" and the authored code typography sized to fill the ticket */
+.coupon .coupon-label,
+.coupon .coupon-code {
+  font-family: var(--heading-font-family);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+.coupon .coupon-code {
+  padding: 7px 12px;
+  border: 2px dashed rgb(255 255 255 / 70%);
+  border-radius: 4px;
+  background: var(--coupon-code-bg);
+}

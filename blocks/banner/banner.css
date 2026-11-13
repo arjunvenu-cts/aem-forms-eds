@@ -1,16 +1,49 @@
-/* Banner block: PLP category banner.
-   Mobile: image on top fading into the orange, text below.
-   Desktop (>= 900px): image fills the banner (anchored right), text over the left side. */
+/* Banner block: promotional / category banner (two authored looks share one block).
+   The coloured background + models are part of the authored image.
+   Mobile: image on top fading into the fill colour, text below.
+   Desktop (>= 900px): image fills the banner (anchored right), text over the left side.
+
+   Authored knobs (set by banner.js from the authoring table):
+     --banner-bg   colour filled behind the image (transparent if not authored)
+     --banner-font display font for the title (heading font if not authored)
+   Font colour is a block variant: Banner (black) / Banner (white). */
 .banner {
-  --banner-bg: #f06845; /* design orange */
-  --banner-ink: #fff;
+  --banner-bg: transparent; /* filled only when the author sets a colour */
+  --banner-ink: #fff; /* default; override with the black / white variant */
+
+  /* Display font for the title (Figma: Druk Trial); Anton is the loaded fallback.
+     An authored "font" row overrides it. */
+  --banner-font: 'Druk Trial', anton, 'Druk Condensed', 'Druk Cond', impact, haettenschweiler, var(--heading-font-family);
 
   position: relative;
   overflow: hidden;
   background-color: var(--banner-bg);
   color: var(--banner-ink);
-  cursor: default;
   user-select: none;
+}
+
+/* ---------- Font colour variants (selected by block name) ---------- */
+.banner.black {
+  --banner-ink: #000;
+}
+
+.banner.white {
+  --banner-ink: #fff;
+}
+
+/* ---------- Whole-banner link ---------- */
+.banner .banner-link {
+  display: block;
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.banner .banner-link:hover,
+.banner .banner-link:focus-visible {
+  color: inherit;
+  text-decoration: none;
 }
 
 /* ---------- Image ---------- */
@@ -33,6 +66,7 @@
   -webkit-user-drag: none;
 }
 
+/* Gradient blend from the image into the fill colour (invisible when transparent) */
 .banner .banner-media::after {
   content: '';
   position: absolute;
@@ -66,51 +100,80 @@
   color: inherit;
 }
 
-/* "AW 26-27  THANKSGIVING" - Supports p tag, h1-h6 tags */
-.banner .banner-content .banner-eyebrow,
-.banner .banner-content p.banner-eyebrow,
-.banner .banner-content h1.banner-eyebrow,
-.banner .banner-content h2.banner-eyebrow,
-.banner .banner-content h3.banner-eyebrow {
-  margin: 0 0 4px 0;
+/* Eyebrow: "SANTA CALLED. YOUR FIT IS HERE." / "AW 26-27  THANKSGIVING"
+   Figma: Roboto Condensed 700, 32px, line-height 100%, letter-spacing -2%, uppercase. */
+.banner .banner-content .banner-eyebrow {
+  margin: 0 0 4px;
   font-family: var(--heading-font-family);
-  font-size: 18px;
+  font-size: clamp(18px, 2.2vw, 32px);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.03em;
+  line-height: 1;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
   white-space: pre-wrap;
 }
 
-/* "LAYER UP." / "STAND OUT." */
-.banner .banner-content .banner-title,
-.banner .banner-content h1.banner-title,
-.banner .banner-content h2.banner-title,
-.banner .banner-content h3.banner-title {
+/* Title: "UP TO 50% OFF ..." / "LAYER UP." "STAND OUT."
+   Figma: Druk Trial 700, 96px, line-height 80% (CAP_HEIGHT trim), letter-spacing 0, uppercase.
+   Figma's 80% relies on cap-height leading-trim; plain CSS has none, so wrapped lines would
+   collide. We trim the line box toward the caps where supported, and keep a safe line-height
+   fallback so lines never overlap. Weight 400 = the display font's single heavy weight (700
+   would synthetically bold Anton, our loaded fallback for Druk). */
+.banner .banner-content .banner-title {
   margin: 0;
-  font-family: var(--heading-font-family);
-  font-size: clamp(40px, 9vw, 64px);
-  font-weight: 800;
-  line-height: 0.88;
-  letter-spacing: -0.01em;
+  font-family: var(--banner-font);
+  font-size: clamp(40px, 6vw, 96px);
+  font-weight: 100;
+  line-height: 0.9;
+  letter-spacing: 0;
+  word-spacing: -0.08em; /* tighten the gap between words */
   text-transform: uppercase;
+  text-wrap: balance; /* split a long title into even lines (~2) instead of lots of short ones */
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+/* No coupon authored: let the title grow a bit to fill the freed space. */
+.banner.no-coupon .banner-content .banner-title {
+  font-size: clamp(44px, 8.5vw, 170px);
+}
+
+/* Browsers with cap-height trimming can sit at the tighter Figma spacing without overlap. */
+@supports (text-box-trim: trim-both) {
+  .banner .banner-content .banner-title {
+    line-height: 0.95;
+  }
 }
 
 .banner .banner-content .banner-title + .banner-title {
   margin-top: 0;
 }
 
-.banner .banner-content .banner-text,
-.banner .banner-content p.banner-text {
-  max-width: 34em;
+/* Breathing room around the hoisted coupon (between the title and the description). */
+.banner .banner-content .coupon {
+  margin: 14px 0 8px;
+}
+
+@media (width >= 900px) {
+  .banner .banner-content .coupon {
+    margin: 18px 0 1px;
+  }
+}
+
+/* Body copy — Figma: Inter 400, 16px, line-height 130%, letter-spacing 0. */
+.banner .banner-content .banner-text {
+  max-width: 30em;
   margin-top: 8px;
-  font-size: 14px;
-  line-height: 1.4;
+  font-family: 'inter', var(--body-font-family);
+  font-size: clamp(14px, 1.2vw, 16px);
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
 }
 
 /* ---------- Desktop ---------- */
 @media (width >= 900px) {
-  .banner {
+  .banner .banner-link {
     display: flex;
     align-items: center;
     min-height: 320px;
@@ -143,30 +206,13 @@
   }
 
   .banner .banner-content {
-    width: min(48%, 560px);
+    width: min(58%, 800px);
     margin-top: 0;
     padding: 40px 48px;
     gap: 12px;
   }
 
-  .banner .banner-content .banner-eyebrow,
-  .banner .banner-content p.banner-eyebrow,
-  .banner .banner-content h1.banner-eyebrow,
-  .banner .banner-content h2.banner-eyebrow,
-  .banner .banner-content h3.banner-eyebrow {
+  .banner .banner-content .banner-eyebrow {
     margin-bottom: 6px;
-    font-size: clamp(18px, 1.5vw, 24px);
-  }
-
-  .banner .banner-content .banner-title,
-  .banner .banner-content h1.banner-title,
-  .banner .banner-content h2.banner-title,
-  .banner .banner-content h3.banner-title {
-    font-size: clamp(56px, 6.2vw, 96px);
-  }
-
-  .banner .banner-content .banner-text,
-  .banner .banner-content p.banner-text {
-    font-size: 16px;
   }
 }
