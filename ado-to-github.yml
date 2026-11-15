@@ -16,8 +16,8 @@ steps:
 
   - bash: |
       git remote add target "https://${GITHUB_USER}:${GITHUB_PAT}@${GITHUB_REPO}"
-      git push target HEAD:refs/heads/main --force
-      git push target --tags --force
+      git push target HEAD:refs/heads/main
+      git push target --tags
     displayName: Push to Git repo
     env:
       GITHUB_PAT: $(GITHUB_PAT)
